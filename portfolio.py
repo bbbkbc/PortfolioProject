@@ -2,17 +2,22 @@ import math
 import pandas as pd
 import datetime
 import numpy as np
-
+import altair as alt
+import matplotlib.pyplot as plt
+from palettable.colorbrewer.qualitative import Pastel1_7, Dark2_8
+import historical_data as hd
 
 # load needed data
 trade_history = pd.read_csv('trade_history.csv', index_col=0)
 symbol_ticker = pd.read_csv('symbol_ticker.csv', index_col=0)
+
+
 # quick check how data looks like
 # print(trade_history.head())
 # print(symbol_ticker.head())
 
 
-def data_preparation(df_trades=trade_history, df_st=symbol_ticker):
+def data_preparation(df_trades, df_st, portfolio_date="1990-01-01"):
     # change format of date_time then split date_time column to date and time
     # and drop date_time column
     df_trades['date_time'] = pd.to_datetime(df_trades['date_time'])
@@ -25,7 +30,7 @@ def data_preparation(df_trades=trade_history, df_st=symbol_ticker):
                            'stock_price', 'value']]
     # set new column with commission values,
     # in this example rules about commission are quiet simple
-    # min commission equal 3, commision_lvl equal 0,0039 from value of transaction
+    # min commission equal 3, commission_lvl equal 0,0039 from value of transaction
     df_trades['commission'] = round(df_trades['value'] * 0.0039, ndigits=2)
     # if commission is below 3 then set new value which is 3
     df_trades.loc[df_trades['commission'] < 3, 'commission'] = 3
@@ -34,7 +39,10 @@ def data_preparation(df_trades=trade_history, df_st=symbol_ticker):
     for i in df_trades.index:
         st_mask = df_st.symbol == df_trades.symbol.iloc[i]
         df_trades.at[i, 'ticker'] = df_st.loc[st_mask].iat[0, 1]
-
+    # this functionality allow to filter portfolio by date
+    if portfolio_date != "1990-01-01":
+        portfolio_date = pd.to_datetime(portfolio_date).date()
+        df_trades = df_trades[df_trades['date'] <= portfolio_date]
     return df_trades
 
 
@@ -61,36 +69,95 @@ def portfolio_preparation(df_trades=pd.DataFrame, evaluation_day="2020-06-10"):
     df_pf['pnl_closed'] = df_pf['sell_share_sum'] * (df_pf['mean_sell'] - df_pf['mean_buy'])
     df_pf['value_at_open'] = df_pf['shares_actual'] * df_pf['mean_buy']
     # loop below will add to df_pf new column with closing price of assets which are in portfolio
+
+    # check if database is updated if not update
+    mkt = pd.read_csv(f'./mkt_data/TPE.csv')
+    last_date = pd.to_datetime(mkt.iloc[-1, 0]).date()
+    e_day = pd.to_datetime(evaluation_day)
+    if e_day > last_date:
+        hd.data_download(symbol_ticker, end=evaluation_day)
+
+    ed = evaluation_day
     for ticker in df_pf.ticker:
         # get data from database to every stock in portfolio
         mkt_data = pd.read_csv(f'./mkt_data/{ticker}.csv')
         # get closing price from mkt data and set this price into specified row/column in df_pf
         date_mask = mkt_data['Date'] == evaluation_day
+        # check if each ticker has in this day any data if not, set last available date
+        if len(mkt_data[date_mask]) == 0:
+            print(f'{ticker} empty data {evaluation_day}')
+            evaluation_day = mkt_data[mkt_data['Date'] <= evaluation_day].iloc[-1, 0]
+            date_mask = mkt_data['Date'] == evaluation_day
+            print(f'Set a new date {evaluation_day}')
         df_pf.loc[df_pf['ticker'] == ticker, 'mkt_close_price'] = mkt_data[date_mask].iat[0, 4]
-    # adding new columns with pnl_live, and value_now which is showing worth of shares
-    # in portfolio
+        evaluation_day = ed
+
+    # adding new columns with pnl_live, and value_now which is showing worth of shares in portfolio
     df_pf['pnl_live'] = df_pf['shares_actual'] * (df_pf['mkt_close_price'] - df_pf['mean_buy'])
     df_pf['value_now'] = df_pf['value_at_open'] + df_pf['pnl_live']
     return df_pf
 
 
-def portfolio_analysis(df_pf=pd.DataFrame):
-    # for start, some simple sum up
-    v_0 = df_pf.value_at_open.sum()
-    v_1 = df_pf.value_now.sum()
-    v_2 = df_pf.pnl_closed.sum()
-    v_3 = df_pf.pnl_live.sum()
-    v_4 = sum(df_pf.buy_comm + df_pf.sell_comm)
-    print(f'PNL live: {v_3:.2f}, PNL settled: {v_2:.2f}, PNL total: {v_3 + v_2:.2f}')
-    print(f'Total transaction costs: {v_4:.2f}')
-    print(f'Portfolio value at open: {v_0:.2f}')
-    print(f'Portfolio value now: {v_1:.2f}')
-    print(f'Open position performance: {((v_1/v_0 - 1) * 100):.2f}%')
-    print(f'Total performance after costs: {(((v_1 + v_2 + v_4) / v_0 - 1) * 100):.2f}%')
+def portfolio_analysis(df_pf, pparam=False):
+    # for start, simple summarize
+    l = portfolio_analysis
+    l.v_0 = df_pf.value_at_open.sum()
+    l.v_1 = df_pf.value_now.sum()
+    l.v_2 = df_pf.pnl_closed.sum()
+    l.v_3 = df_pf.pnl_live.sum()
+    l.v_4 = sum(df_pf.buy_comm + df_pf.sell_comm)
+    if pparam:
+        print(f'PNL live: {l.v_3:.2f}, PNL settled: {l.v_2:.2f}, PNL total: {l.v_3 + l.v_2:.2f}')
+        print(f'Total transaction costs: {l.v_4:.2f}')
+        print(f'Portfolio value at open: {l.v_0:.2f}')
+        print(f'Portfolio value now: {l.v_1:.2f}')
+        print(f'Open position performance: {((l.v_1 / l.v_0 - 1) * 100):.2f}%')
+        print(f'Total performance after costs: {(((l.v_1 + l.v_2 + l.v_4) / l.v_0 - 1) * 100):.2f}%')
+
+
+def visualization(df_pf, p_composition='donut', p=None):
+    portfolio_analysis(df_pf, p)
+    value_sum = portfolio_analysis.v_0
+    data = df_pf[['ticker', 'value_at_open', 'pnl_live', 'pnl_closed']]
+    data = data.drop(data[data.value_at_open == 0].index)
+    data = data.fillna(0)
+    print(data)
+    # plotting portfolio composition for existing exposure in different styles
+    y_pos = np.arange(len(data.ticker))
+    if p_composition == 'donut':
+        my_circle = plt.Circle((0, 0), 0.50, color='white')
+        plt.pie(data.value_at_open,
+                labels=data.ticker,
+                colors=Pastel1_7.hex_colors,
+                autopct='%1.1f%%',
+                pctdistance=0.9)
+        p = plt.gcf()
+        p.gca().add_artist(my_circle)
+        plt.show()
+    elif p_composition == 'barplot':
+        plt.bar(y_pos, data.value_at_open, color=Dark2_8.hex_colors)
+        plt.xticks(y_pos, data.ticker)
+        plt.show()
+    # this one present initial value for living exposure with stacked settled pnl and live pnl
+    elif p_composition == 'stacked':
+        data["bars"] = data.value_at_open + data.pnl_closed
+        # Create brown bars
+        plt.bar(y_pos, data.value_at_open,
+                color='#6cd4d2', edgecolor='white')
+        # Create green bars (middle), on top of the firs ones
+        plt.bar(y_pos, data.pnl_closed,
+                bottom=data.value_at_open, color='#3547cc', edgecolor='white')
+        # Create green bars (top)
+        plt.bar(y_pos, data.pnl_live,
+                bottom=data.bars, color='#335d80', edgecolor='white')
+        plt.xticks(y_pos, data.ticker)
+        plt.show()
 
 
 if __name__ == '__main__':
-    df = data_preparation(trade_history, symbol_ticker)
-    eval_day = "2020-06-23"
+    hist_portfolio = "2020-06-23"
+    df = data_preparation(trade_history, symbol_ticker, hist_portfolio)
+    eval_day = "2020-06-25"
     portfolio = portfolio_preparation(df, eval_day)
     portfolio_analysis(portfolio)
+    visualization(portfolio, 'donut')
