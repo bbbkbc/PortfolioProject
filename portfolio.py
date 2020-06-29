@@ -1,15 +1,12 @@
 import math
 import pandas as pd
 import datetime
+import holidays
 import numpy as np
 import altair as alt
 import matplotlib.pyplot as plt
 from palettable.colorbrewer.qualitative import Pastel1_7, Dark2_8
 import historical_data as hd
-
-# load needed data
-trade_history = pd.read_csv('trade_history.csv', index_col=0)
-symbol_ticker = pd.read_csv('symbol_ticker.csv', index_col=0)
 
 
 # quick check how data looks like
@@ -37,8 +34,8 @@ def data_preparation(df_trades, df_st, portfolio_date="1990-01-01"):
     # swap ticker values which are the same as in symbol column into correct
     # for this purpose i use file which store this values
     for i in df_trades.index:
-        st_mask = df_st.symbol == df_trades.symbol.iloc[i]
-        df_trades.at[i, 'ticker'] = df_st.loc[st_mask].iat[0, 1]
+        st_mask = df_trades.symbol.iloc[i] == df_st.symbol
+        df_trades.loc[i, 'ticker'] = df_st[st_mask].iat[0, 1]
     # this functionality allow to filter portfolio by date
     if portfolio_date != "1990-01-01":
         portfolio_date = pd.to_datetime(portfolio_date).date()
@@ -46,7 +43,7 @@ def data_preparation(df_trades, df_st, portfolio_date="1990-01-01"):
     return df_trades
 
 
-def portfolio_preparation(df_trades=pd.DataFrame, evaluation_day="2020-06-10"):
+def portfolio_preparation(df_trades, sym_tik, evaluation_day="2020-06-10"):
     # create new empty dataframe
     df_pf = pd.DataFrame()
     # add unique ticker for each stock which is in trade history
@@ -57,12 +54,12 @@ def portfolio_preparation(df_trades=pd.DataFrame, evaluation_day="2020-06-10"):
     for t in df_pf.ticker:
         buy_mask = (df_trades['site'] == 'K') & (df_trades['ticker'] == t)
         sell_mask = (df_trades['site'] == 'S') & (df_trades['ticker'] == t)
-        df_pf.loc[df_pf['ticker'] == t, 'mean_buy'] = df[buy_mask].stock_price.mean()
-        df_pf.loc[df_pf['ticker'] == t, 'buy_comm'] = df[buy_mask].commission.sum()
-        df_pf.loc[df_pf['ticker'] == t, 'buy_share_sum'] = df[buy_mask].num_of_share.sum()
-        df_pf.loc[df_pf['ticker'] == t, 'mean_sell'] = df[sell_mask].stock_price.mean()
-        df_pf.loc[df_pf['ticker'] == t, 'sell_comm'] = df[sell_mask].commission.sum()
-        df_pf.loc[df_pf['ticker'] == t, 'sell_share_sum'] = df[sell_mask].num_of_share.sum()
+        df_pf.loc[df_pf['ticker'] == t, 'mean_buy'] = df_trades[buy_mask].stock_price.mean()
+        df_pf.loc[df_pf['ticker'] == t, 'buy_comm'] = df_trades[buy_mask].commission.sum()
+        df_pf.loc[df_pf['ticker'] == t, 'buy_share_sum'] = df_trades[buy_mask].num_of_share.sum()
+        df_pf.loc[df_pf['ticker'] == t, 'mean_sell'] = df_trades[sell_mask].stock_price.mean()
+        df_pf.loc[df_pf['ticker'] == t, 'sell_comm'] = df_trades[sell_mask].commission.sum()
+        df_pf.loc[df_pf['ticker'] == t, 'sell_share_sum'] = df_trades[sell_mask].num_of_share.sum()
     # create new columns with contain value of living position
     # settled pnl as well portfolio value based on buy_price
     df_pf['shares_actual'] = df_pf['buy_share_sum'] - df_pf['sell_share_sum']
@@ -75,7 +72,7 @@ def portfolio_preparation(df_trades=pd.DataFrame, evaluation_day="2020-06-10"):
     last_date = pd.to_datetime(mkt.iloc[-1, 0]).date()
     e_day = pd.to_datetime(evaluation_day)
     if e_day > last_date:
-        hd.data_download(symbol_ticker, end=evaluation_day)
+        hd.data_download(sym_tik, end=evaluation_day)
 
     ed = evaluation_day
     for ticker in df_pf.ticker:
@@ -85,10 +82,10 @@ def portfolio_preparation(df_trades=pd.DataFrame, evaluation_day="2020-06-10"):
         date_mask = mkt_data['Date'] == evaluation_day
         # check if each ticker has in this day any data if not, set last available date
         if len(mkt_data[date_mask]) == 0:
-            print(f'{ticker} empty data {evaluation_day}')
-            evaluation_day = mkt_data[mkt_data['Date'] <= evaluation_day].iloc[-1, 0]
+            # print(f'{ticker} empty data {evaluation_day}')
+            evaluation_day = mkt_data[mkt_data['Date'] <= str(evaluation_day)].iloc[-1, 0]
             date_mask = mkt_data['Date'] == evaluation_day
-            print(f'Set a new date {evaluation_day}')
+            # print(f'Set a new date {evaluation_day}')
         df_pf.loc[df_pf['ticker'] == ticker, 'mkt_close_price'] = mkt_data[date_mask].iat[0, 4]
         evaluation_day = ed
 
@@ -121,7 +118,6 @@ def visualization(df_pf, p_composition='donut', p=None):
     data = df_pf[['ticker', 'value_at_open', 'pnl_live', 'pnl_closed']]
     data = data.drop(data[data.value_at_open == 0].index)
     data = data.fillna(0)
-    print(data)
     # plotting portfolio composition for existing exposure in different styles
     y_pos = np.arange(len(data.ticker))
     if p_composition == 'donut':
@@ -154,10 +150,40 @@ def visualization(df_pf, p_composition='donut', p=None):
         plt.show()
 
 
+def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-06-25", show_chart=False):
+    pl_holidays = holidays.PL()
+    st = pd.to_datetime(start).date()
+    ed = pd.to_datetime(end).date()
+    lst_bd = []
+    for i in range(int((ed - st).days) + 1):
+        bd = st + datetime.timedelta(i)
+        if bd in pl_holidays or bd.weekday() > 4:
+            continue
+        lst_bd.append(bd)
+    date_lst = []
+    pnl_lst = []
+    for x in lst_bd:
+        pf_data = portfolio_preparation(data_preparation(trade_history, symbol_ticker, x), symbol_ticker, x)
+        pnl_l = pf_data.pnl_live.sum()
+        pnl_c = pf_data.pnl_closed.sum()
+        # print(f'DATE:{x} | PNL TOTAL: {pnl_l + pnl_c:.2f}')
+        date_lst.append(pd.to_datetime(x).date())
+        pnl_lst.append(pnl_l + pnl_c)
+    df_pnl = pd.DataFrame(list(zip(date_lst, pnl_lst)), columns=['date', 'pnl_total'])
+    if show_chart:
+        plt.plot(df_pnl.date, df_pnl.pnl_total, color='#8f9805')
+        plt.show()
+    return df_pnl
+
+
 if __name__ == '__main__':
-    hist_portfolio = "2020-06-23"
+    # load needed data
+    trade_history = pd.read_csv('trade_history.csv', index_col=0)
+    symbol_ticker = pd.read_csv('symbol_ticker.csv', index_col=0)
+    hist_portfolio = "2020-06-26"
     df = data_preparation(trade_history, symbol_ticker, hist_portfolio)
-    eval_day = "2020-06-25"
-    portfolio = portfolio_preparation(df, eval_day)
-    portfolio_analysis(portfolio)
-    visualization(portfolio, 'donut')
+    eval_day = "2020-06-26"
+    portfolio = portfolio_preparation(df, symbol_ticker, eval_day)
+    portfolio_analysis(portfolio, pparam=True)
+    # visualization(portfolio, None, p=False)
+    pnl_analysis(trade_history, symbol_ticker, show_chart=True)

@@ -17,6 +17,7 @@ def data_download(data=pd.DataFrame, start='2010-01-01', end='2020-06-22'):
         csv_file.write(url_content)
         csv_file.close()
         print(f'{ticker} downloaded')
+    print('database updated')
 
 
 if __name__ == '__main__':
