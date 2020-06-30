@@ -148,6 +148,7 @@ def visualization(df_pf, p_composition='donut', p=None):
                 bottom=data.bars, color='#335d80', edgecolor='white')
         plt.xticks(y_pos, data.ticker)
         plt.show()
+    return data
 
 
 def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-06-25", show_chart=False):
@@ -180,10 +181,11 @@ if __name__ == '__main__':
     # load needed data
     trade_history = pd.read_csv('trade_history.csv', index_col=0)
     symbol_ticker = pd.read_csv('symbol_ticker.csv', index_col=0)
-    hist_portfolio = "2020-06-26"
-    df = data_preparation(trade_history, symbol_ticker, hist_portfolio)
-    eval_day = "2020-06-26"
+    hist_portfolio = "2020-04-25"
+    df = data_preparation(trade_history, symbol_ticker)
+    eval_day = "2020-04-25"
     portfolio = portfolio_preparation(df, symbol_ticker, eval_day)
     portfolio_analysis(portfolio, pparam=True)
-    # visualization(portfolio, None, p=False)
-    pnl_analysis(trade_history, symbol_ticker, show_chart=True)
+    vis_d = visualization(portfolio, p_composition=None, p=False)
+
+    # pnl_analysis(trade_history, symbol_ticker, show_chart=True)
