@@ -187,5 +187,7 @@ if __name__ == '__main__':
     portfolio = portfolio_preparation(df, symbol_ticker, eval_day)
     portfolio_analysis(portfolio, pparam=True)
     vis_d = visualization(portfolio, p_composition=None, p=False)
-
+    first_day = trade_history.date_time.min().date()
+    ranges = datetime.datetime(2020, 4, 30).date()
+    print(first_day >= ranges)
     # pnl_analysis(trade_history, symbol_ticker, show_chart=True)
