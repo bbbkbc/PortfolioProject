@@ -97,24 +97,30 @@ def portfolio_preparation(df_trades, sym_tik, evaluation_day="2020-06-10"):
 
 def portfolio_analysis(df_pf, pparam=False):
     # for start, simple summarize
-    l = portfolio_analysis
-    l.v_0 = df_pf.value_at_open.sum()
-    l.v_1 = df_pf.value_now.sum()
-    l.v_2 = df_pf.pnl_closed.sum()
-    l.v_3 = df_pf.pnl_live.sum()
-    l.v_4 = sum(df_pf.buy_comm + df_pf.sell_comm)
+    v_0 = df_pf.value_at_open.sum()
+    v_1 = df_pf.value_now.sum()
+    v_2 = df_pf.pnl_closed.sum()
+    v_3 = df_pf.pnl_live.sum()
+    v_4 = sum(df_pf.buy_comm + df_pf.sell_comm)
+    # summarize of portfolio:
+    pnl_sum = f'PNL live: {v_3:.2f}, PNL settled: {v_2:.2f}, PNL total: {v_3 + v_2:.2f}'
+    costs = f'Total transaction costs: {v_4:.2f}'
+    value_open = f'Portfolio value at open: {v_0:.2f}'
+    value_now = f'Portfolio value now: {v_1:.2f}'
+    open_per = f'Open position performance: {((v_1 / v_0 - 1) * 100):.2f}%'
+    total_per = f'Total performance after costs: {(((v_1 + v_2 + v_4) / v_0 - 1) * 100):.2f}%'
     if pparam:
-        print(f'PNL live: {l.v_3:.2f}, PNL settled: {l.v_2:.2f}, PNL total: {l.v_3 + l.v_2:.2f}')
-        print(f'Total transaction costs: {l.v_4:.2f}')
-        print(f'Portfolio value at open: {l.v_0:.2f}')
-        print(f'Portfolio value now: {l.v_1:.2f}')
-        print(f'Open position performance: {((l.v_1 / l.v_0 - 1) * 100):.2f}%')
-        print(f'Total performance after costs: {(((l.v_1 + l.v_2 + l.v_4) / l.v_0 - 1) * 100):.2f}%')
+        print(pnl_sum)
+        print(costs)
+        print(value_open)
+        print(value_now)
+        print(open_per)
+        print(total_per)
+    return [pnl_sum, costs, value_open, value_now, open_per, total_per]
 
 
 def visualization(df_pf, p_composition='donut', p=None):
     portfolio_analysis(df_pf, p)
-    value_sum = portfolio_analysis.v_0
     data = df_pf[['ticker', 'value_at_open', 'pnl_live', 'pnl_closed']]
     data = data.drop(data[data.value_at_open == 0].index)
     data = data.fillna(0)
@@ -185,7 +191,8 @@ if __name__ == '__main__':
     df = data_preparation(trade_history, symbol_ticker)
     eval_day = "2020-04-25"
     portfolio = portfolio_preparation(df, symbol_ticker, eval_day)
-    portfolio_analysis(portfolio, pparam=True)
+    lst = portfolio_analysis(portfolio, pparam=False)
+    print(lst)
     vis_d = visualization(portfolio, p_composition=None, p=False)
     first_day = trade_history.date_time.min().date()
     ranges = datetime.datetime(2020, 4, 30).date()

@@ -8,11 +8,13 @@ import pandas as pd
 import datetime
 from portfolio import portfolio_preparation as pp
 from portfolio import data_preparation as dp
+from portfolio import portfolio_analysis
 from portfolio import pnl_analysis
+
 
 th = pd.read_csv('trade_history.csv', index_col=0)
 st = pd.read_csv('symbol_ticker.csv', index_col=0)
-# pf_data = pnl_analysis(trade_history=th, symbol_ticker=st)
+# pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end='2020-06-30')
 # pf_data.to_pickle('pf_pnl.pkl')
 pf_data = pd.read_pickle('pf_pnl.pkl')
 
@@ -61,6 +63,46 @@ content = html.Div(id="page-content", style=CONTENT_STYLE)
 app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
 
 # page 1 content - in this section app will show summary about portfolio
+page_1_layout = html.Div(
+    children=[
+        dbc.Row([
+            dbc.Col(
+                html.H4('Set date:'), width='auto', className='CERULEAN'
+            ),
+            dbc.Col([
+                dcc.DatePickerSingle(
+                    id='calendar',
+                    clearable=True,
+                    with_portal=True,
+                    date=datetime.datetime(2020, 6, 30).date(),
+                    display_format='Y-MM-DD'),
+            ]),
+        ]),
+        html.Br(),
+        dbc.Row([
+            dbc.Card([
+                dbc.CardHeader("Portfolio Summary", className="card-title"),
+                dbc.CardBody(id='sum-data'),
+                ], color='primary', inverse=True),
+            ]),
+    ])
+
+
+@app.callback(Output(component_id='sum-data', component_property='children'),
+              [Input(component_id='calendar', component_property='date')])
+def portfolio_sum(date):
+    df = dp(th, st, date)
+    portfolio = pp(df, st, date)
+    p_summary = portfolio_analysis(portfolio)
+
+    return html.Div([html.P(p_summary[0], className="card-text",),
+                     html.P(p_summary[1], className="card-text",),
+                     html.P(p_summary[2], className="card-text",),
+                     html.P(p_summary[3], className="card-text",),
+                     html.P(p_summary[4], className="card-text",),
+                     html.P(p_summary[5], className="card-text",),
+                     ])
+
 
 # page 2 content - here are data related with portfolio composition
 page_2_layout = html.Div(
@@ -162,8 +204,9 @@ page_3_layout = html.Div(children=[
                                 'type': 'line',
                                 'name': 'PNL'
                                 }],
-                      'layout': {'title': 'Total PNL overtime'}})
+                      'layout': {'title': 'Total PNL Cumulative'}})
 ])
+
 # page 4 content
 page_4_layout = html.Div(children=[
     html.Div(children='symbol to graph:'),
@@ -189,7 +232,7 @@ def graph(symbol, start_date):
     return dcc.Graph(figure=fig)
 
 
-# page 4 content
+# page 5 content
 page_5_layout = html.Div([
     dbc.Row(dbc.Col(dbc.Alert('Here you can add a new transation to your portfolio', color='info'),
                     width={'size': 6, 'offset': 3})),
@@ -232,7 +275,7 @@ def toggle_active_links(pathname):
 @app.callback(Output("page-content", "children"), [Input("url", "pathname")])
 def render_page_content(pathname):
     if pathname in ["/", "/page-1"]:
-        return html.P('Summary')
+        return page_1_layout
     elif pathname == "/page-2":
         return page_2_layout
     elif pathname == "/page-3":
