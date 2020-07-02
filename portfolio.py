@@ -95,13 +95,27 @@ def portfolio_preparation(df_trades, sym_tik, evaluation_day="2020-06-10"):
     return df_pf
 
 
-def portfolio_analysis(df_pf, pparam=False):
+def portfolio_analysis(df_pf, pparam=False, v_param=False):
+    """
+    :param df_pf: as input should be data frame taken from portfolio preparation function
+    :param pparam: if want to print out and check output set as TRUE default is False
+    :param v_param: if want to change returned data into v params change on True
+    :return: if v_param False function return list of strings with calculated summary data,
+    :parameters if v_param True:
+    v_0 = df_pf.value_at_open.sum()
+    v_1 = df_pf.value_now.sum()
+    v_2 = df_pf.pnl_closed.sum()
+    v_3 = df_pf.pnl_live.sum()
+    v_4 = sum(df_pf.buy_comm + df_pf.sell_comm)
+    """
     # for start, simple summarize
     v_0 = df_pf.value_at_open.sum()
     v_1 = df_pf.value_now.sum()
     v_2 = df_pf.pnl_closed.sum()
     v_3 = df_pf.pnl_live.sum()
     v_4 = sum(df_pf.buy_comm + df_pf.sell_comm)
+    if v_param:
+        return [v_0, v_1, v_2, v_3, v_4]
     # summarize of portfolio:
     pnl_sum = f'PNL live: {v_3:.2f}, PNL settled: {v_2:.2f}, PNL total: {v_3 + v_2:.2f}'
     costs = f'Total transaction costs: {v_4:.2f}'
@@ -162,6 +176,8 @@ def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-06-
     st = pd.to_datetime(start).date()
     ed = pd.to_datetime(end).date()
     lst_bd = []
+    pkl_check = pd.read_pickle('pf_pnl.pkl')
+    pkl_last_date = pkl_check.date.max()
     for i in range(int((ed - st).days) + 1):
         bd = st + datetime.timedelta(i)
         if bd in pl_holidays or bd.weekday() > 4:
@@ -191,10 +207,7 @@ if __name__ == '__main__':
     df = data_preparation(trade_history, symbol_ticker)
     eval_day = "2020-04-25"
     portfolio = portfolio_preparation(df, symbol_ticker, eval_day)
-    lst = portfolio_analysis(portfolio, pparam=False)
-    print(lst)
+
     vis_d = visualization(portfolio, p_composition=None, p=False)
-    first_day = trade_history.date_time.min().date()
-    ranges = datetime.datetime(2020, 4, 30).date()
-    print(first_day >= ranges)
+
     # pnl_analysis(trade_history, symbol_ticker, show_chart=True)

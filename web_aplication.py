@@ -76,15 +76,36 @@ page_1_layout = html.Div(
                     with_portal=True,
                     date=datetime.datetime(2020, 6, 30).date(),
                     display_format='Y-MM-DD'),
+            ], width=5),
+            dbc.Col(html.H4('Delta range:'), width='auto', className='CERULEAN'),
+            dbc.Col([
+                dcc.DatePickerRange(
+                    id='delta-range',
+                    minimum_nights=1,
+                    clearable=True,
+                    with_portal=True,
+                    start_date=datetime.datetime(2020, 6, 21).date(),
+                    end_date=datetime.datetime(2020, 6, 22).date(),
+                    display_format='Y-MM-DD'
+                ),
             ]),
         ]),
         html.Br(),
+        html.Hr(),
         dbc.Row([
-            dbc.Card([
-                dbc.CardHeader("Portfolio Summary", className="card-title"),
-                dbc.CardBody(id='sum-data'),
-                ], color='primary', inverse=True),
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader("Portfolio Summary:", className="card-title"),
+                    dbc.CardBody(id='sum-data'),
+                    ],
+                    color='primary', inverse=True,),
             ]),
+            dbc.Col([
+                dbc.Table(id='delta-data',
+                          bordered=True,
+                          hover=True)
+            ]),  # for now is empty, but i have plan to add pie chart with pnl ratio
+        ]),
     ])
 
 
@@ -95,13 +116,71 @@ def portfolio_sum(date):
     portfolio = pp(df, st, date)
     p_summary = portfolio_analysis(portfolio)
 
-    return html.Div([html.P(p_summary[0], className="card-text",),
-                     html.P(p_summary[1], className="card-text",),
-                     html.P(p_summary[2], className="card-text",),
-                     html.P(p_summary[3], className="card-text",),
-                     html.P(p_summary[4], className="card-text",),
-                     html.P(p_summary[5], className="card-text",),
+    return html.Div([html.P(p_summary[0]),
+                     html.P(p_summary[1]),
+                     html.P(p_summary[2]),
+                     html.P(p_summary[3]),
+                     html.P(p_summary[4]),
+                     html.P(p_summary[5]),
                      ])
+
+
+@app.callback(Output(component_id='delta-data', component_property='children'),
+              [Input(component_id='delta-range', component_property='start_date'),
+               Input(component_id='delta-range', component_property='end_date')])
+def portfolio_sum(start_date, end_date):
+    df_start = dp(th, st, start_date)
+    portfolio_start = pp(df_start, st, start_date)
+    ps_start = portfolio_analysis(portfolio_start, v_param=True)
+    df_end = dp(th, st, end_date)
+    portfolio_end = pp(df_end, st, end_date)
+    ps_end = portfolio_analysis(portfolio_end, v_param=True)
+    # pnl_sum = f'PNL live: {v_3:.2f}, PNL settled: {v_2:.2f}, PNL total: {v_3 + v_2:.2f}'
+    # costs = f'Total transaction costs: {v_4:.2f}'
+    # value_open = f'Portfolio value at open: {v_0:.2f}'
+    # value_now = f'Portfolio value now: {v_1:.2f}'
+    # open_per = f'Open position performance: {((v_1 / v_0 - 1) * 100):.2f}%'
+    # total_per = f'Total performance after costs: {(((v_1 + v_2 + v_4) / v_0 - 1) * 100):.2f}%'
+
+    table_header = [html.Thead(html.Tr([html.Th("Indicator"),
+                                        html.Th(f"Value at {start_date}"),
+                                        html.Th(f"Value at {end_date}"),
+                                        html.Th(f"Delta")]))]
+    row1 = html.Tr([html.Td("PNL LIVE"),
+                    html.Td(f"{ps_start[3]:.2f}"),
+                    html.Td(f"{ps_end[3]:.2f}"),
+                    html.Td(f"{ps_end[3] - ps_start[3]:.2f}")])
+    row2 = html.Tr([html.Td("PNL CLOSED"),
+                    html.Td(f"{ps_start[2]:.2f}"),
+                    html.Td(f"{ps_end[2]:.2f}"),
+                    html.Td(f"{ps_end[2] - ps_start[2]:.2f}")])
+    row3 = html.Tr([html.Td("PNL TOTAL"),
+                    html.Td(f"{ps_start[3] + ps_start[2]:.2f}"),
+                    html.Td(f"{ps_end[3] + ps_end[2]:.2f}"),
+                    html.Td(f"{(ps_end[3] + ps_end[2]) - (ps_start[3] + ps_start[2]):.2f}")])
+    row4 = html.Tr([html.Td("TOTAL COST"),
+                    html.Td(f"{ps_start[4]:.2f}"),
+                    html.Td(f"{ps_end[4]:.2f}"),
+                    html.Td(f"{ps_end[4] - ps_start[4]:.2f}")])
+    row5 = html.Tr([html.Td("P VAL OPEN"),
+                    html.Td(f"{ps_start[0]:.2f}"),
+                    html.Td(f"{ps_end[0]:.2f}"),
+                    html.Td(f"{ps_end[0] - ps_start[0]:.2f}")])
+    row6 = html.Tr([html.Td("P VAL NOW"),
+                    html.Td(f"{ps_start[1]:.2f}"),
+                    html.Td(f"{ps_end[1]:.2f}"),
+                    html.Td(f"{ps_end[1] - ps_start[1]:.2f}")])
+    row7 = html.Tr([html.Td("OPEN RETURN"),
+                    html.Td(f"{((ps_start[1] / ps_start[0] - 1) * 100):.2f}%"),
+                    html.Td(f"{((ps_end[1] / ps_end[0] - 1) * 100):.2f}%"),
+                    html.Td(f"{(((ps_end[1] / ps_end[0] - 1) - (ps_start[1] / ps_start[0] - 1)  ) * 100):.2f}%")])
+    row8 = html.Tr([html.Td("TOTAL RETURN"),
+                    html.Td(f"{(((ps_start[1] + ps_start[2] + ps_start[4]) / ps_start[0] - 1) * 100):.2f}%"),
+                    html.Td(f"{(((ps_end[1] + ps_end[2] + ps_end[4]) / ps_end[0] - 1) * 100):.2f}%"),
+                    html.Td(f"""{((((ps_end[1] + ps_end[2] + ps_end[4]) / ps_end[0] - 1) - 
+                                   ((ps_start[1] + ps_start[2] + ps_start[4]) / ps_start[0] - 1) )* 100):.2f}%""")])
+    table_body = [html.Tbody([row1, row2, row3, row4, row5, row6, row7, row8])]
+    return table_header + table_body
 
 
 # page 2 content - here are data related with portfolio composition
@@ -234,7 +313,7 @@ def graph(symbol, start_date):
 
 # page 5 content
 page_5_layout = html.Div([
-    dbc.Row(dbc.Col(dbc.Alert('Here you can add a new transation to your portfolio', color='info'),
+    dbc.Row(dbc.Col(dbc.Alert('Here you can add a new transaction to your portfolio', color='info'),
                     width={'size': 6, 'offset': 3})),
     html.Br(),
     dbc.Row([
