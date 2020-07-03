@@ -171,28 +171,41 @@ def visualization(df_pf, p_composition='donut', p=None):
     return data
 
 
-def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-06-25", show_chart=False):
+def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-07-02", show_chart=False):
     pl_holidays = holidays.PL()
     st = pd.to_datetime(start).date()
     ed = pd.to_datetime(end).date()
     lst_bd = []
     pkl_check = pd.read_pickle('pf_pnl.pkl')
     pkl_last_date = pkl_check.date.max()
-    for i in range(int((ed - st).days) + 1):
-        bd = st + datetime.timedelta(i)
-        if bd in pl_holidays or bd.weekday() > 4:
-            continue
-        lst_bd.append(bd)
-    date_lst = []
-    pnl_lst = []
-    for x in lst_bd:
-        pf_data = portfolio_preparation(data_preparation(trade_history, symbol_ticker, x), symbol_ticker, x)
-        pnl_l = pf_data.pnl_live.sum()
-        pnl_c = pf_data.pnl_closed.sum()
-        # print(f'DATE:{x} | PNL TOTAL: {pnl_l + pnl_c:.2f}')
-        date_lst.append(pd.to_datetime(x).date())
-        pnl_lst.append(pnl_l + pnl_c)
-    df_pnl = pd.DataFrame(list(zip(date_lst, pnl_lst)), columns=['date', 'pnl_total'])
+    if pkl_last_date >= ed:
+        start_date_mask = pkl_check.date >= st
+        end_date_mask = pkl_check.date <= ed
+        df_pnl = pkl_check[start_date_mask & end_date_mask]
+    else:
+        for i in range(int((ed - st).days) + 1):
+            bd = st + datetime.timedelta(i)
+            if bd in pl_holidays or bd.weekday() > 4:
+                continue
+            lst_bd.append(bd)
+        date_lst = []
+        pnl_lst = []
+        val_open_lst = []
+        val_now_lst = []
+        for x in lst_bd:
+            pf_data = portfolio_preparation(data_preparation(trade_history, symbol_ticker, x), symbol_ticker, x)
+            pnl_l = pf_data.pnl_live.sum()
+            pnl_c = pf_data.pnl_closed.sum()
+            val_open = pf_data.value_at_open.sum()
+            val_now = pf_data.value_now.sum()
+            # print(f'DATE:{x} | PNL TOTAL: {pnl_l + pnl_c:.2f}')
+            date_lst.append(pd.to_datetime(x).date())
+            pnl_lst.append(pnl_l + pnl_c)
+            val_open_lst.append(val_open)
+            val_now_lst.append(val_now)
+        df_pnl = pd.DataFrame(list(zip(date_lst, pnl_lst, val_open_lst, val_now_lst)),
+                              columns=['date', 'pnl_total', 'val_open_lst', 'val_now_lst'])
+        pd.to_pickle(df_pnl, 'pf_pnl.pkl')
     if show_chart:
         plt.plot(df_pnl.date, df_pnl.pnl_total, color='#8f9805')
         plt.show()
@@ -207,6 +220,7 @@ if __name__ == '__main__':
     df = data_preparation(trade_history, symbol_ticker)
     eval_day = "2020-04-25"
     portfolio = portfolio_preparation(df, symbol_ticker, eval_day)
+    pnl_analysis(trade_history, symbol_ticker, end='2020-07-02', show_chart=True)
 
     vis_d = visualization(portfolio, p_composition=None, p=False)
 

@@ -2,7 +2,8 @@ import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
+import dash_table
+from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import pandas as pd
 import datetime
@@ -10,13 +11,13 @@ from portfolio import portfolio_preparation as pp
 from portfolio import data_preparation as dp
 from portfolio import portfolio_analysis
 from portfolio import pnl_analysis
+from dash.exceptions import PreventUpdate
 
 
 th = pd.read_csv('trade_history.csv', index_col=0)
 st = pd.read_csv('symbol_ticker.csv', index_col=0)
-# pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end='2020-06-30')
-# pf_data.to_pickle('pf_pnl.pkl')
-pf_data = pd.read_pickle('pf_pnl.pkl')
+pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end='2020-07-02')
+
 
 app = dash.Dash(external_stylesheets=[dbc.themes.CERULEAN])
 
@@ -84,8 +85,8 @@ page_1_layout = html.Div(
                     minimum_nights=1,
                     clearable=True,
                     with_portal=True,
-                    start_date=datetime.datetime(2020, 6, 21).date(),
-                    end_date=datetime.datetime(2020, 6, 22).date(),
+                    start_date=datetime.datetime(2020, 4, 24).date(),
+                    end_date=datetime.datetime(2020, 7, 2).date(),
                     display_format='Y-MM-DD'
                 ),
             ]),
@@ -104,7 +105,10 @@ page_1_layout = html.Div(
                 dbc.Table(id='delta-data',
                           bordered=True,
                           hover=True)
-            ]),  # for now is empty, but i have plan to add pie chart with pnl ratio
+            ]),
+        ]),
+        dbc.Row([
+            dbc.Col(id='val-chart')
         ]),
     ])
 
@@ -128,19 +132,13 @@ def portfolio_sum(date):
 @app.callback(Output(component_id='delta-data', component_property='children'),
               [Input(component_id='delta-range', component_property='start_date'),
                Input(component_id='delta-range', component_property='end_date')])
-def portfolio_sum(start_date, end_date):
+def portfolio_delta(start_date, end_date):
     df_start = dp(th, st, start_date)
     portfolio_start = pp(df_start, st, start_date)
     ps_start = portfolio_analysis(portfolio_start, v_param=True)
     df_end = dp(th, st, end_date)
     portfolio_end = pp(df_end, st, end_date)
     ps_end = portfolio_analysis(portfolio_end, v_param=True)
-    # pnl_sum = f'PNL live: {v_3:.2f}, PNL settled: {v_2:.2f}, PNL total: {v_3 + v_2:.2f}'
-    # costs = f'Total transaction costs: {v_4:.2f}'
-    # value_open = f'Portfolio value at open: {v_0:.2f}'
-    # value_now = f'Portfolio value now: {v_1:.2f}'
-    # open_per = f'Open position performance: {((v_1 / v_0 - 1) * 100):.2f}%'
-    # total_per = f'Total performance after costs: {(((v_1 + v_2 + v_4) / v_0 - 1) * 100):.2f}%'
 
     table_header = [html.Thead(html.Tr([html.Th("Indicator"),
                                         html.Th(f"Value at {start_date}"),
@@ -181,6 +179,28 @@ def portfolio_sum(start_date, end_date):
                                    ((ps_start[1] + ps_start[2] + ps_start[4]) / ps_start[0] - 1) )* 100):.2f}%""")])
     table_body = [html.Tbody([row1, row2, row3, row4, row5, row6, row7, row8])]
     return table_header + table_body
+
+
+@app.callback(Output(component_id='val-chart', component_property='children'),
+              [Input(component_id='delta-range', component_property='start_date'),
+               Input(component_id='delta-range', component_property='end_date')])
+def value_chart(start_date, end_date):
+    st_date = pd.to_datetime(start_date).date()
+    end_date = pd.to_datetime(end_date).date()
+    df_val = pnl_analysis(th, st, start=start_date, end=end_date)
+    df_val = df_val[['date', 'val_open_lst', 'val_now_lst', 'pnl_total']]
+    graphs = dcc.Graph(
+        config={'displaylogo': False},
+        figure={'data': [
+            {'x': df_val.date, 'y': df_val.val_open_lst, 'type': 'line', 'name': 'Value at Open'},
+            {'x': df_val.date, 'y': df_val.val_now_lst, 'type': 'line', 'name': 'Value Now'},
+            {'x': df_val.date, 'y': df_val.pnl_total, 'type': 'bar', 'name': 'PNL TOTAL'},
+        ],
+            'layout': {'title': f'Value change in range from {start_date} to {end_date}',
+                       'height': 600}
+        },
+    )
+    return graphs
 
 
 # page 2 content - here are data related with portfolio composition
@@ -288,9 +308,9 @@ page_3_layout = html.Div(children=[
 
 # page 4 content
 page_4_layout = html.Div(children=[
-    html.Div(children='symbol to graph:'),
+    html.Div(children='Symbol to graph:'),
     dcc.Input(id='symbol', value='MBK', type='text'),
-    html.Div(children='set starting date:'),
+    html.Div(children='Set starting date:'),
     dcc.Input(id='start_date', value='2020-03-03', type='text'),
     html.Div(id='output_graph'),
 ])
@@ -307,36 +327,98 @@ def graph(symbol, start_date):
     df = df[start:]
     candlestick = go.Candlestick(x=df.index, open=df.Open, high=df.High, low=df.Low, close=df.Close)
     fig = go.Figure(data=[candlestick])
-    fig.update_layout(title=stock, xaxis_rangeslider_visible=False)
+    fig.update_layout(title=stock, xaxis_rangeslider_visible=False, height=600)
     return dcc.Graph(figure=fig)
 
 
 # page 5 content
+# page_5_layout = html.Div([
+#     dbc.Row(dbc.Col(dbc.Alert('Here you can add a new transaction to your portfolio', color='info'),
+#                     width={'size': 6, 'offset': 3})),
+#     html.Br(),
+#     html.Hr(),
+#     dbc.Row([
+#         dbc.Col([
+#             html.Div("New Transaction"),
+#             html.Br(),
+#             html.Div(['Date:', dcc.Input(id='date_time', value='2020-06-24 14:05:29', type='text')]),
+#             html.Div(['Symbol:']),
+#             dcc.Input(id='symbol', value='PLAY', type='text'),
+#             html.Div(['Shares number:']),
+#             dcc.Input(id='num_of_share', value='200', type='text'),
+#             html.Div(['Price:']),
+#             dcc.Input(id='stock_price', value='29.54', type='text'),
+#             html.Div(['Cash:', dcc.Input(id='cash_value', value='800', type='text')]),
+#
+#             html.Br(),
+#             dbc.Button('ADD TRADE', id='new-trade', color='primary', className='CERULEAN'),
+#         ], width=3),
+#         dbc.Col([
+#             html.Div('Trade history log'),
+#             html.Br(),
+#             html.Div(id='history-log'),
+#             html.Div('Trade history log'),
+#             html.Div('Trade history log'),
+#             html.Div('Trade history log'),
+#             html.Div('Trade history log'),
+#         ]),
+#     ]),
+# ])
+
 page_5_layout = html.Div([
-    dbc.Row(dbc.Col(dbc.Alert('Here you can add a new transaction to your portfolio', color='info'),
-                    width={'size': 6, 'offset': 3})),
+    dbc.Row(dbc.Col(
+        dbc.Alert('Here you can add a new transaction to your portfolio', color='info'),
+        width={'size': 6, 'offset': 3})),
     html.Br(),
+    html.Hr(),
     dbc.Row([
         dbc.Col([
-            html.Div("New Transaction"),
+            html.Div('NEW TRANSACTION'),
             html.Br(),
+            html.Div('SITE (K/S)'),
+            dcc.Input(id='input-0-state', value='K', type='text'),
             html.Div('Date:'),
-            dbc.Input(id='date_time', placeholder='2020-06-24 14:05:29', type='text'),
+            dcc.Input(id='input-1-state', value='2020-06-24 14:05:29', type='text'),
             html.Div('Symbol:'),
-            dbc.Input(id='symbol', placeholder='PLAY', type='text'),
-            html.Div('Shares number:'),
-            dbc.Input(id='num_of_share', placeholder='200', type='text'),
-            html.Div('Price:'),
-            dbc.Input(id='stock_price', placeholder='29.54', type='text'),
-            html.Div('Value:'),
-            dbc.Input(id='value', placeholder='800', type='text'),
-            html.Br(),
-            dbc.Button('ADD TRADE', id='new-trade', n_clicks=0, color='primary', className='CERULEAN'),
-        ],
-            width=3),
-        dbc.Col(html.Div("One of three columns")),
-    ])
+            dcc.Input(id='input-2-state', value='PLAY', type='text'),
+            html.Div('Shares:'),
+            dcc.Input(id='input-3-state', value='200', type='text'),
+            html.Div('Price'),
+            dcc.Input(id='input-4-state', value='29.54', type='text'),
+            html.Div('Cash'),
+            dcc.Input(id='input-5-state', value='800', type='text'),
+            html.Div([
+                html.Br(),
+                dbc.Button('ADD TRADE', id='button-state', n_clicks=0, color='primary', className='CERULEAN')
+            ]),
+        ], width=3),
+        dbc.Col([
+            html.Div(id='output-state')]),
+    ]),
 ])
+
+
+@app.callback(Output('output-state', 'children'),
+              [Input('button-state', 'n_clicks')],
+              [State('input-0-state', 'value'),
+               State('input-1-state', 'value'),
+               State('input-2-state', 'value'),
+               State('input-3-state', 'value'),
+               State('input-4-state', 'value'),
+               State('input-5-state', 'value')])
+def update_output(n_clicks, input0, input1, input2, input3, input4, input5):
+    df = pd.read_csv('trade_history.csv', index_col=0)
+    if n_clicks == 0:
+        raise PreventUpdate
+    else:
+        # df = pd.read_csv('trade_history.csv', index_col=0)
+        # columns['date_time', 'symbol', 'ticker', 'site', 'num_of_share', 'stock_price', 'value']
+        df.loc[-1] = [f'{input1}', f'{input2}', f'{input2}', f'{input0}', int(input3), float(input4), float(input5)]
+        df.index = df.index + 1
+        df = df.sort_index()
+        df.to_csv('trade_history.csv')
+        # (n_clicks, input1, input2, input3, input4, input5)
+        return f'Transaction added to the database, you added {n_clicks} new transactions'
 
 
 # this callback uses the current pathname to set the active state of the
