@@ -412,7 +412,7 @@ page_5_layout = html.Div([
                State('input-4-state', 'value'),
                State('input-5-state', 'value')])
 def update_output(n_clicks, input0, input1, input2, input3, input4, input5):
-    df = pd.read_csv('trade_history.csv', index_col=0)
+    df = pd.read_csv('trade_history1.csv', index_col=0)
     if n_clicks == 0:
         raise PreventUpdate
     else:
@@ -421,7 +421,7 @@ def update_output(n_clicks, input0, input1, input2, input3, input4, input5):
         df.loc[-1] = [f'{input1}', f'{input2}', f'{input2}', f'{input0}', int(input3), float(input4), float(input5)]
         df.index = df.index + 1
         df = df.sort_index()
-        df.to_csv('trade_history.csv')
+        df.to_csv('trade_history1.csv')
         # (n_clicks, input1, input2, input3, input4, input5)
         return html.Div([
             dbc.Alert(f'Transaction added to the database, you added {n_clicks} new transactions', color='primary'),
