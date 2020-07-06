@@ -1,6 +1,7 @@
 import math
 import pandas as pd
 import datetime
+from datetime import datetime as dt
 import holidays
 import numpy as np
 import altair as alt
@@ -171,7 +172,7 @@ def visualization(df_pf, p_composition='donut', p=None):
     return data
 
 
-def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-07-02", show_chart=False):
+def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-07-02", show_chart=False, benchmark=False):
     pl_holidays = holidays.PL()
     st = pd.to_datetime(start).date()
     ed = pd.to_datetime(end).date()
@@ -206,6 +207,25 @@ def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-07-
         df_pnl = pd.DataFrame(list(zip(date_lst, pnl_lst, val_open_lst, val_now_lst)),
                               columns=['date', 'pnl_total', 'val_open_lst', 'val_now_lst'])
         pd.to_pickle(df_pnl, 'pf_pnl.pkl')
+    # condition below will modify df_pnl and return dataframe which compare daily retrun on portfolio and wig20
+    if benchmark:
+        df_pnl['%_change_cumulative'] = (((df_pnl.val_open_lst + df_pnl.pnl_total) / df_pnl.val_open_lst) - 1) * 100
+        df_pnl['%_1_day_shift'] = abs(df_pnl['%_change_cumulative'].shift(1).fillna(0))
+        df_pnl['%_daily_change'] = df_pnl['%_change_cumulative'] - df_pnl['%_1_day_shift']
+        benchmark_symbol = 'WIG20'
+        benchmark_data = pd.read_csv(f'./mkt_data/{benchmark_symbol}.csv')
+        benchmark_data = benchmark_data[['Date', 'Close']]
+        # benchmark_data['Date'] = pd.to_datetime(benchmark_data['Date'])
+        benchmark_data['Date'] = pd.to_datetime(benchmark_data['Date']).dt.date
+        last_date = pd.to_datetime(benchmark_data.iloc[-1, 0]).date()
+        if ed > last_date:
+            hd.data_download(benchmark_symbol, end=ed)
+        benchmark_data = benchmark_data.loc[benchmark_data.Date >= (st - datetime.timedelta(1))]
+        benchmark_data['1d_shift'] = benchmark_data['Close'].shift(1).fillna(0)
+        benchmark_data['%1d_change'] = ((benchmark_data['Close'] / benchmark_data['1d_shift']) - 1) * 100
+        benchmark_data = benchmark_data.loc[(benchmark_data.Date >= st) & (benchmark_data.Date <= ed)]
+        benchmark_data['%_change_cumulative'] = benchmark_data['%1d_change'].cumsum()
+        return [df_pnl, benchmark_data]
     if show_chart:
         plt.plot(df_pnl.date, df_pnl.pnl_total, color='#8f9805')
         plt.show()
@@ -220,8 +240,9 @@ if __name__ == '__main__':
     df = data_preparation(trade_history, symbol_ticker)
     eval_day = "2020-04-25"
     portfolio = portfolio_preparation(df, symbol_ticker, eval_day)
-    pnl_analysis(trade_history, symbol_ticker, end='2020-07-02', show_chart=True)
-
+    data_pnl = pnl_analysis(trade_history, symbol_ticker, end='2020-07-03', show_chart=False, benchmark=True)
+    print(data_pnl[0])
+    print(data_pnl[1])
     vis_d = visualization(portfolio, p_composition=None, p=False)
 
     # pnl_analysis(trade_history, symbol_ticker, show_chart=True)
