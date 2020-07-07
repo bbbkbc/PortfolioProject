@@ -8,6 +8,7 @@ import altair as alt
 import matplotlib.pyplot as plt
 from palettable.colorbrewer.qualitative import Pastel1_7, Dark2_8
 import historical_data as hd
+import csv
 
 
 # quick check how data looks like
@@ -177,13 +178,23 @@ def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-07-
     st = pd.to_datetime(start).date()
     ed = pd.to_datetime(end).date()
     lst_bd = []
-    pkl_check = pd.read_pickle('pf_pnl.pkl')
-    pkl_last_date = pkl_check.date.max()
-    if pkl_last_date >= ed:
-        start_date_mask = pkl_check.date >= st
-        end_date_mask = pkl_check.date <= ed
-        df_pnl = pkl_check[start_date_mask & end_date_mask]
-    else:
+    try:
+        file_name = 'pf_pnl.csv'
+        pkl_check = pd.read_csv(file_name)
+        pkl_check['date'] = pd.to_datetime(pkl_check['date']).dt.date
+        pkl_last_date = pkl_check.date.max()
+        if pkl_last_date >= ed:
+            start_date_mask = pkl_check.date >= st
+            end_date_mask = pkl_check.date <= ed
+            df_pnl = pkl_check[start_date_mask & end_date_mask]
+            err_param = False
+        else:
+            err_param = True
+    except FileNotFoundError:
+        err_param = True
+        print(f'No such file, reloading script')
+
+    if err_param:
         for i in range(int((ed - st).days) + 1):
             bd = st + datetime.timedelta(i)
             if bd in pl_holidays or bd.weekday() > 4:
@@ -206,7 +217,7 @@ def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-07-
             val_now_lst.append(val_now)
         df_pnl = pd.DataFrame(list(zip(date_lst, pnl_lst, val_open_lst, val_now_lst)),
                               columns=['date', 'pnl_total', 'val_open_lst', 'val_now_lst'])
-        pd.to_pickle(df_pnl, 'pf_pnl.pkl')
+        df_pnl.to_csv('pf_pnl.csv', index=False)
     # condition below will modify df_pnl and return dataframe which compare daily retrun on portfolio and wig20
     if benchmark:
         df_pnl['%_change_cumulative'] = (((df_pnl.val_open_lst + df_pnl.pnl_total) / df_pnl.val_open_lst) - 1) * 100
