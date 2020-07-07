@@ -18,13 +18,11 @@ def data_download(data=pd.DataFrame, start='2010-01-01', end='2020-06-22'):
         csv_file.close()
         print(f'{ticker} downloaded')
     print('database updated')
-    test_last = pd.read_csv(f'./mkt_data/WIG20.csv')
-    print(test_last.Date.tail(1))
 
 
 if __name__ == '__main__':
     # symbol_ticker is just a file with list of name and shortcut stocks which are in portfolio
     portfolio_symbols = pd.read_csv('symbol_ticker.csv')
     start_date = "2010-01-01"
-    end_date = "2020-07-03"
+    end_date = "2020-07-06"
     data_download(portfolio_symbols, start_date, end_date)

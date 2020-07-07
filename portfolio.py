@@ -219,7 +219,7 @@ def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-07-
         benchmark_data['Date'] = pd.to_datetime(benchmark_data['Date']).dt.date
         last_date = pd.to_datetime(benchmark_data.iloc[-1, 0]).date()
         if ed > last_date:
-            hd.data_download(benchmark_symbol, end=ed)
+            hd.data_download(symbol_ticker, end=str(ed))
         benchmark_data = benchmark_data.loc[benchmark_data.Date >= (st - datetime.timedelta(1))]
         benchmark_data['1d_shift'] = benchmark_data['Close'].shift(1).fillna(0)
         benchmark_data['%1d_change'] = ((benchmark_data['Close'] / benchmark_data['1d_shift']) - 1) * 100
