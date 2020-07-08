@@ -8,7 +8,6 @@ import altair as alt
 import matplotlib.pyplot as plt
 from palettable.colorbrewer.qualitative import Pastel1_7, Dark2_8
 import historical_data as hd
-import csv
 
 
 # quick check how data looks like

@@ -2,7 +2,6 @@ import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
-import dash_table
 from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import pandas as pd
@@ -12,10 +11,12 @@ from portfolio import data_preparation as dp
 from portfolio import portfolio_analysis
 from portfolio import pnl_analysis
 from dash.exceptions import PreventUpdate
+import re
+from portfolio_risk import RiskAnalysis
 
 th = pd.read_csv('trade_history.csv', index_col=0)
 st = pd.read_csv('symbol_ticker.csv', index_col=0)
-pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end='2020-07-06')
+pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end='2020-07-07')
 
 app = dash.Dash(external_stylesheets=[dbc.themes.CERULEAN])
 
@@ -38,6 +39,7 @@ CONTENT_STYLE = {
     "padding": "4rem 2rem",
 }
 
+
 sidebar = html.Div(
     [
         html.H2("Portfolio Management"),
@@ -50,6 +52,7 @@ sidebar = html.Div(
                 dbc.NavLink("PNL", href="/page-3", id="page-3-link"),
                 dbc.NavLink("Stock Charts", href="/page-4", id="page-4-link"),
                 dbc.NavLink("Transactions", href="/page-5", id="page-5-link"),
+                dbc.NavLink("Risk Analysis", href="/page-6", id="page-6-link"),
             ],
             vertical=True,
             pills=True,
@@ -66,8 +69,7 @@ page_1_layout = html.Div(
     children=[
         dbc.Row([
             dbc.Col(
-                html.H4('Set date:'), width='auto', className='CERULEAN'
-            ),
+                html.H4('Set date:'), width='auto'),
             dbc.Col([
                 dcc.DatePickerSingle(
                     id='calendar',
@@ -76,7 +78,7 @@ page_1_layout = html.Div(
                     date=datetime.datetime(2020, 6, 30).date(),
                     display_format='Y-MM-DD'),
             ], width=5),
-            dbc.Col(html.H4('Delta range:'), width='auto', className='CERULEAN'),
+            dbc.Col(html.H4('Delta range:'), width='auto'),
             dbc.Col([
                 dcc.DatePickerRange(
                     id='delta-range',
@@ -97,12 +99,13 @@ page_1_layout = html.Div(
                     dbc.CardHeader("Portfolio Summary:", className="card-title"),
                     dbc.CardBody(id='sum-data'),
                 ],
-                    color='primary', inverse=True, ),
+                    color='secondary', inverse=False,
+                ),
             ]),
             dbc.Col([
                 dbc.Table(id='delta-data',
                           bordered=True,
-                          hover=True)
+                          hover=True),
             ]),
         ]),
         dbc.Row([
@@ -195,7 +198,9 @@ def value_chart(start_date, end_date):
             {'x': df_val.date, 'y': df_val.pnl_total, 'type': 'bar', 'name': 'PNL TOTAL'},
         ],
             'layout': {'title': f'Value change in range from {start_date} to {end_date}',
-                       'height': 600}
+                       'height': 600,
+                       'legend': {'orientation': 'h', 'y': 1.05},
+                       }
         },
     )
     return graphs
@@ -339,7 +344,7 @@ def benchmark(start, end):
                               'type': 'bar', 'name': 'PORTFOLIO DAILY'}],
                     'layout': {'title': 'Return Portfolio vs Wig20',
                                'height': 600,
-                               'legend': {'orientation': 'h', 'y': 1.02},
+                               'legend': {'orientation': 'h', 'y': 1.05},
                                }
                     }),
     ])
@@ -429,16 +434,56 @@ def update_output(n_clicks, input0, input1, input2, input3, input4, input5):
         ])
 
 
+page_6_layout = html.Div([
+    dcc.DatePickerRange(
+        id='my-date-picker-range',
+        min_date_allowed=datetime.datetime(2020, 4, 24).date(),
+        max_date_allowed=datetime.datetime.today().date(),
+        initial_visible_month=datetime.datetime.today().date(),
+        end_date=datetime.datetime.today().date(),
+        display_format='Y-MM-DD'
+    ),
+    html.Div(id='output-container-date-picker-range')
+])
+
+
+@app.callback(
+    dash.dependencies.Output('output-container-date-picker-range', 'children'),
+    [dash.dependencies.Input('my-date-picker-range', 'start_date'),
+     dash.dependencies.Input('my-date-picker-range', 'end_date')])
+def update_output(start_date, end_date):
+    string_prefix = 'You have selected: '
+    if start_date is not None:
+        start_date = datetime.datetime.strptime(re.split('T| ', start_date)[0], '%Y-%m-%d')
+        start_date_string = start_date.strftime('%B %d, %Y')
+        string_prefix = string_prefix + 'Start Date: ' + start_date_string + ' | '
+    if end_date is not None:
+        end_date = datetime.datetime.strptime(re.split('T| ', end_date)[0], '%Y-%m-%d')
+        end_date_string = end_date.strftime('%B %d, %Y')
+        string_prefix = string_prefix + 'End Date: ' + end_date_string
+    if len(string_prefix) == len('You have selected: '):
+        return 'Select a date to see it displayed here'
+    if start_date and end_date is not None:
+        var_surface = RiskAnalysis(start_date=start_date, end_date=end_date, eval_date=end_date)
+        fig = var_surface.var_3d_surface()[1]
+        table = var_surface.var_3d_surface()[0]
+        return [html.Div(string_prefix),
+                dbc.Row(dbc.Col(dcc.Graph(figure=fig), width={"size": 6, "offset": 3})),
+                dbc.Row(dbc.Table.from_dataframe(table))]
+    else:
+        return string_prefix
+
+
 # this callback uses the current pathname to set the active state of the
 # corresponding nav link to true, allowing users to tell see page they are on
 @app.callback(
-    [Output(f"page-{i}-link", "active") for i in range(1, 6)],
+    [Output(f"page-{i}-link", "active") for i in range(1, 7)],
     [Input("url", "pathname")], )
 def toggle_active_links(pathname):
     if pathname == "/":
         # Treat page 1 as the homepage / index
         return True, False, False
-    return [pathname == f"/page-{i}" for i in range(1, 6)]
+    return [pathname == f"/page-{i}" for i in range(1, 7)]
 
 
 @app.callback(Output("page-content", "children"), [Input("url", "pathname")])
@@ -453,6 +498,8 @@ def render_page_content(pathname):
         return page_4_layout
     elif pathname == "/page-5":
         return page_5_layout
+    elif pathname == "/page-6":
+        return page_6_layout
 
     # If the user tries to reach a different page, return a 404 message
     return dbc.Jumbotron(

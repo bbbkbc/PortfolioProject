@@ -2,7 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
-
+import holidays
+import datetime
+import plotly.graph_objects as go
 from portfolio import data_preparation as data_prep
 from portfolio import portfolio_preparation as pf_prep
 
@@ -25,9 +27,9 @@ class RiskAnalysis:
     def preprocessing(self):
         portfolio = self.df_pf
         initial_investment = portfolio.value_at_open.sum()
-        portfolio = portfolio[['ticker', 'value_at_open']]
-        portfolio['weights'] = portfolio['value_at_open'] / initial_investment
-        portfolio = portfolio[portfolio['value_at_open'] != 0]
+        portfolio = portfolio[['ticker', 'value_now']]
+        portfolio['weights'] = portfolio['value_now'] / initial_investment
+        portfolio = portfolio[portfolio['value_now'] != 0]
         portfolio.reset_index(inplace=True)
         return [portfolio[['ticker', 'weights']], initial_investment]
 
@@ -89,6 +91,7 @@ class RiskAnalysis:
             plt.title(f'Max portfolio loss (VaR) over {self.number_days_var}-day period')
             plt.plot(var_array, 'r')
             plt.show()
+        return var_array
 
     def histograms_var(self):
         tik = self.histogram_ticker
@@ -102,15 +105,39 @@ class RiskAnalysis:
         plt.title(f'{tik} returns vs normal distribution')
         plt.show()
 
+    def var_3d_surface(self):
+        # iteration for only working date in range of start and end date
+        holidays_PL = holidays.PL()
+        start_dt = pd.to_datetime(self.start_date).date()
+        end_dt = pd.to_datetime(self.end_date).date()
+        date_lst = []
+        var_3d_frame = pd.DataFrame(columns=[f'{n + 1}_day' for n in range(self.number_days_var)])
+        for i in range(int((end_dt - start_dt).days) + 1):
+            bd = start_dt + datetime.timedelta(i)
+            if bd in holidays_PL or bd.weekday() > 4:
+                continue
+            date_lst.append(bd)
+        var_3d_frame['date'] = pd.to_datetime(date_lst)
+        var_3d_frame.set_index('date', inplace=True)
+        for x in date_lst:
+            reload = RiskAnalysis(eval_date=str(x), number_days_var=self.number_days_var, show_plot=False)
+            var_3d_frame.loc[x] = reload.n_day_var()
+        fig = go.Figure(data=[go.Surface(z=var_3d_frame.values)])
+        fig.update_layout(title='VaR surface', autosize=False,
+                          width=800, height=800,)
+        return [var_3d_frame, fig]
+
     def print_date(self):
         print(f'start: {self.start_date}, end: {self.end_date}, eval: {self.eval_date}')
         print(f'data frame:\n {self.preprocessing()[0]}')
         print(f'init invest:\n {self.preprocessing()[1]}')
         print(f'ticker date:\n {self.get_data()}')
         print(f'1D VAR: \n {self.portfolio_var()}')
+        print(f'date: {self.var_3d_surface()}')
 
 
 if __name__ == '__main__':
-    date = RiskAnalysis(eval_date='2020-04-24', number_days_var=20, show_plot=True, histogram_ticker='TPE')
-    date.n_day_var()
-    date.histograms_var()
+    date = RiskAnalysis(start_date='2020-05-01', end_date='2020-05-31', eval_date='2020-05-31',
+                        number_days_var=20, show_plot=False)
+    date.var_3d_surface()[1].show()
+
