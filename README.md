@@ -10,4 +10,4 @@
 ![Screenshot_2020-07-06 Dash(2)](https://user-images.githubusercontent.com/58358044/86627769-1df2bb00-bfc9-11ea-9774-e7e4e4b9bf49.png)
 ![Screenshot_2020-07-06 Dash(3)](https://user-images.githubusercontent.com/58358044/86627773-1f23e800-bfc9-11ea-8a99-8095c2c1593f.png)
 ![Screenshot_2020-07-06 Dash(4)](https://user-images.githubusercontent.com/58358044/86627778-20edab80-bfc9-11ea-889b-6b69f0ec6702.png)
-
+![Screenshot_2020-07-08 Dash](https://user-images.githubusercontent.com/58358044/86912629-9e2a3500-c11d-11ea-968d-d17ad09c47ca.png)
