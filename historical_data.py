@@ -8,8 +8,8 @@ def data_download(data=pd.DataFrame, start='2010-01-01', end='2020-06-22'):
     data_path = os.path.join(path[0], 'mkt_data/')
     os.makedirs(data_path, exist_ok=True)
     for ticker in data.ticker:
-        start = start.replace("-", "")
-        end = end.replace("-", "")
+        start = str(start).replace("-", "")
+        end = str(end).replace("-", "")
         download_url = f'https://stooq.com//q/d/l/?s={ticker}&d1={start}&d2={end}&i=d'
         req = requests.get(download_url)
         url_content = req.content
