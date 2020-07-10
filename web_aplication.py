@@ -1,22 +1,24 @@
+import datetime
+import re
+
 import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output, State
-import plotly.graph_objs as go
+import dash_table
 import pandas as pd
-import datetime
-from portfolio import portfolio_preparation as pp
-from portfolio import data_preparation as dp
-from portfolio import portfolio_analysis
-from portfolio import pnl_analysis
+import plotly.graph_objs as go
+from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
-import re
+
+from portfolio import data_preparation as dp
+from portfolio import portfolio_analysis, pnl_analysis
+from portfolio import portfolio_preparation as pp
 from portfolio_risk import RiskAnalysis
 
 th = pd.read_csv('trade_history.csv', index_col=0)
 st = pd.read_csv('symbol_ticker.csv', index_col=0)
-pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end='2020-07-07')
+pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end='2020-07-09')
 
 app = dash.Dash(external_stylesheets=[dbc.themes.CERULEAN])
 
@@ -74,7 +76,9 @@ page_1_layout = html.Div(
                 dcc.DatePickerSingle(
                     id='calendar',
                     clearable=True,
-                    with_portal=True,
+                    min_date_allowed=datetime.datetime(2020, 4, 24).date(),
+                    max_date_allowed=datetime.datetime.today().date(),
+                    initial_visible_month=datetime.datetime.today().date(),
                     date=datetime.datetime(2020, 6, 30).date(),
                     display_format='Y-MM-DD'),
             ], width=5),
@@ -84,7 +88,9 @@ page_1_layout = html.Div(
                     id='delta-range',
                     minimum_nights=1,
                     clearable=True,
-                    with_portal=True,
+                    min_date_allowed=datetime.datetime(2020, 4, 24).date(),
+                    max_date_allowed=datetime.datetime.today().date(),
+                    initial_visible_month=datetime.datetime.today().date(),
                     start_date=datetime.datetime(2020, 4, 24).date(),
                     end_date=datetime.datetime(2020, 7, 2).date(),
                     display_format='Y-MM-DD'
@@ -217,7 +223,8 @@ page_2_layout = html.Div(
                 dcc.DatePickerSingle(
                     id='calendar',
                     clearable=True,
-                    with_portal=True,
+                    min_date_allowed=datetime.datetime(2020, 4, 24).date(),
+                    max_date_allowed=datetime.datetime.today().date(),
                     date=datetime.datetime(2020, 4, 24).date(),
                     display_format='Y-MM-DD'),
             ]),
@@ -230,6 +237,15 @@ page_2_layout = html.Div(
             dbc.Col([
                 html.Div(id='portfolio-bar'),
             ]),
+        ]),
+        dbc.Row([
+            html.Hr(),
+            dbc.Col(html.H3('Portfolio components table')),
+                 ]),
+        dbc.Row([
+            dbc.Col([
+                html.Div(id='portfolio-table')
+            ])
         ]),
     ])
 
@@ -264,7 +280,7 @@ def portfolio_bar(date):
     date_value = pd.to_datetime(date).date()
     first_day = pd.to_datetime(th.date_time.min()).date()
     today = datetime.datetime.now().date()
-    if first_day <= date_value < today:
+    if first_day <= date_value <= today:
         result = dbc.Alert(f'You picked {date}', color='info')
     else:
         # if date is out of range set date_value as a first_day in transaction history
@@ -297,13 +313,31 @@ def portfolio_bar(date):
     ])
 
 
-# page 3 content
+@app.callback(Output(component_id='portfolio-table', component_property='children'),
+              [Input(component_id='calendar', component_property='date')])
+def portfolio_table(date):
+    data_prep = dp(th, st, date)
+    data_pp = pp(data_prep, st, date)
+    data = data_pp[['ticker', 'shares_actual', 'buy_share_sum', 'sell_share_sum', 'value_now',
+                    'mean_buy', 'mean_sell', 'mkt_close_price', 'pnl_live', 'pnl_closed']]
+    data['Pnl_Open%'] = (((data.shares_actual * data.mkt_close_price) / (data.shares_actual * data.mean_buy)) - 1) * 100
+    data['PnL_Closed%'] = (((data.sell_share_sum * data.mean_sell) / (data.sell_share_sum * data.mean_buy)) - 1) * 100
+    data = round(data, ndigits=2)
+    data = data.fillna(0)
+    return dash_table.DataTable(columns=[{'name': i, 'id': i} for i in data.columns],
+                                data=data.to_dict('records'),
+                                )
+
+
+# page 3 content - on this site user can check how portfolio return is looking on graph, as well check benchmark
 page_3_layout = html.Div(children=[
     dcc.DatePickerRange(
         id='delta-range',
         minimum_nights=1,
         clearable=True,
-        with_portal=True,
+        min_date_allowed=datetime.datetime(2020, 4, 24).date(),
+        max_date_allowed=datetime.datetime.today().date(),
+        initial_visible_month=datetime.datetime.today().date(),
         start_date=datetime.datetime(2020, 4, 24).date(),
         end_date=datetime.datetime(2020, 7, 2).date(),
         display_format='Y-MM-DD'
