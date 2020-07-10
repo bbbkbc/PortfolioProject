@@ -26,7 +26,7 @@ class RiskAnalysis:
 
     def preprocessing(self):
         portfolio = self.df_pf
-        initial_investment = portfolio.value_at_open.sum()
+        initial_investment = portfolio.value_now.sum()
         portfolio = portfolio[['ticker', 'value_now']]
         portfolio['weights'] = portfolio['value_now'] / initial_investment
         portfolio = portfolio[portfolio['value_now'] != 0]
@@ -43,9 +43,9 @@ class RiskAnalysis:
         for ticker in tickers:
             closing_data = pd.read_csv(f'./mkt_data/{ticker}.csv')[['Date', 'Close']]
             end_mask = closing_data['Date'] <= self.eval_date
-            closing_data = closing_data[end_mask]
-            # history in range 30days before eval day
-            closing_data = closing_data.iloc[-30:]
+            prep_st_date = str(pd.to_datetime(self.eval_date).date() - datetime.timedelta(30))
+            start_mask = closing_data['Date'] >= prep_st_date
+            closing_data = closing_data[start_mask & end_mask]
             closing_data.reset_index(inplace=True)
             closing_data['Date'] = pd.to_datetime(closing_data['Date'])
             closing_data.set_index('Date', inplace=True)
@@ -120,7 +120,8 @@ class RiskAnalysis:
         var_3d_frame['date'] = pd.to_datetime(date_lst)
         var_3d_frame.set_index('date', inplace=True)
         for x in date_lst:
-            reload = RiskAnalysis(eval_date=str(x), number_days_var=self.number_days_var, show_plot=False)
+            reload = RiskAnalysis(start_date=self.start_date, end_date=self.end_date,
+                                  eval_date=str(x), number_days_var=self.number_days_var, show_plot=False)
             var_3d_frame.loc[x] = reload.n_day_var()
         fig = go.Figure(data=[go.Surface(z=var_3d_frame.values)])
         fig.update_layout(title='VaR surface', autosize=False,
@@ -131,13 +132,13 @@ class RiskAnalysis:
         print(f'start: {self.start_date}, end: {self.end_date}, eval: {self.eval_date}')
         print(f'data frame:\n {self.preprocessing()[0]}')
         print(f'init invest:\n {self.preprocessing()[1]}')
-        print(f'ticker date:\n {self.get_data()}')
-        print(f'1D VAR: \n {self.portfolio_var()}')
-        print(f'date: {self.var_3d_surface()}')
+        # print(f'ticker date:\n {self.get_data()}')
+        # print(f'1D VAR: \n {self.portfolio_var()}')
+        # print(f'date: {self.var_3d_surface()[0]}')
 
 
 if __name__ == '__main__':
-    date = RiskAnalysis(start_date='2020-05-01', end_date='2020-05-31', eval_date='2020-05-31',
-                        number_days_var=20, show_plot=False)
-    date.var_3d_surface()[1].show()
-
+    date = RiskAnalysis(start_date='2020-04-24', end_date='2020-07-08', eval_date='2020-07-07',
+                        number_days_var=20, show_plot=True)
+    date.print_date()
+    print(date.get_data())
