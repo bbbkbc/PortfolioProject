@@ -119,14 +119,16 @@ class RiskAnalysis:
             date_lst.append(bd)
         var_3d_frame['date'] = pd.to_datetime(date_lst)
         var_3d_frame.set_index('date', inplace=True)
+        capital = []
         for x in date_lst:
             reload = RiskAnalysis(start_date=self.start_date, end_date=self.end_date,
                                   eval_date=str(x), number_days_var=self.number_days_var, show_plot=False)
             var_3d_frame.loc[x] = reload.n_day_var()
+            capital.append(reload.df_pf.value_now.sum())
         fig = go.Figure(data=[go.Surface(z=var_3d_frame.values)])
         fig.update_layout(title='VaR surface', autosize=False,
                           width=800, height=800,)
-        return [var_3d_frame, fig]
+        return [var_3d_frame, fig, capital]
 
     def print_date(self):
         print(f'start: {self.start_date}, end: {self.end_date}, eval: {self.eval_date}')
@@ -137,8 +139,20 @@ class RiskAnalysis:
         # print(f'date: {self.var_3d_surface()[0]}')
 
 
+def volatility_var(RsAnal):
+    risk = RsAnal
+    x = risk.var_3d_surface()
+    new_df = x[0]
+    new_df = new_df[['1_day']]
+    new_df['cap'] = x[2]
+    new_df['risk_ratio'] = (new_df['1_day'] / new_df['cap']) * 100
+    return new_df
+
+
 if __name__ == '__main__':
-    date = RiskAnalysis(start_date='2020-04-24', end_date='2020-07-08', eval_date='2020-07-07',
-                        number_days_var=20, show_plot=True)
-    date.print_date()
-    print(date.get_data())
+    date = RiskAnalysis(start_date='2020-07-01', end_date='2020-07-13', eval_date='2020-07-07',
+                        number_days_var=20, show_plot=False)
+    print(volatility_var(date))
+
+    # date.print_date()
+    # print(date.get_data()
