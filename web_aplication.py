@@ -18,7 +18,7 @@ from portfolio_risk import RiskAnalysis
 
 th = pd.read_csv('trade_history.csv', index_col=0)
 st = pd.read_csv('symbol_ticker.csv', index_col=0)
-pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end='2020-07-09')
+pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end='2020-07-15')
 
 app = dash.Dash(external_stylesheets=[dbc.themes.CERULEAN])
 
@@ -89,7 +89,7 @@ page_1_layout = html.Div(
                     minimum_nights=1,
                     clearable=True,
                     min_date_allowed=datetime.datetime(2020, 4, 24).date(),
-                    max_date_allowed=datetime.datetime.today().date(),
+                    max_date_allowed=datetime.datetime.today().date() + datetime.timedelta(1),
                     initial_visible_month=datetime.datetime.today().date(),
                     start_date=datetime.datetime(2020, 4, 24).date(),
                     end_date=datetime.datetime(2020, 7, 2).date(),
@@ -326,6 +326,7 @@ def portfolio_table(date):
     data = data.fillna(0)
     return dash_table.DataTable(columns=[{'name': i, 'id': i} for i in data.columns],
                                 data=data.to_dict('records'),
+                                filter_action='native',
                                 )
 
 
@@ -336,7 +337,7 @@ page_3_layout = html.Div(children=[
         minimum_nights=1,
         clearable=True,
         min_date_allowed=datetime.datetime(2020, 4, 24).date(),
-        max_date_allowed=datetime.datetime.today().date(),
+        max_date_allowed=datetime.datetime.today().date() + datetime.timedelta(1),
         initial_visible_month=datetime.datetime.today().date(),
         start_date=datetime.datetime(2020, 4, 24).date(),
         end_date=datetime.datetime(2020, 7, 2).date(),
@@ -516,7 +517,7 @@ def update_output(start_date, end_date):
 def toggle_active_links(pathname):
     if pathname == "/":
         # Treat page 1 as the homepage / index
-        return True, False, False
+        return True, False
     return [pathname == f"/page-{i}" for i in range(1, 7)]
 
 
