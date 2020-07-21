@@ -25,7 +25,7 @@ class RiskAnalysis:
         self.histogram_ticker = histogram_ticker
 
     def preprocessing(self):
-        portfolio = self.df_pf
+        portfolio = self.df_pf.copy()
         initial_investment = portfolio.value_now.sum()
         portfolio = portfolio[['ticker', 'value_now']]
         portfolio['weights'] = portfolio['value_now'] / initial_investment
@@ -142,7 +142,7 @@ class RiskAnalysis:
 def volatility_var(RsAnal):
     risk = RsAnal
     x = risk.var_3d_surface()
-    new_df = x[0]
+    new_df = x[0].copy()
     new_df = new_df[['1_day']]
     new_df['cap'] = x[2]
     new_df['risk_ratio'] = (new_df['1_day'] / new_df['cap']) * 100
@@ -150,9 +150,11 @@ def volatility_var(RsAnal):
 
 
 if __name__ == '__main__':
-    date = RiskAnalysis(start_date='2020-07-01', end_date='2020-07-13', eval_date='2020-07-07',
+    date = RiskAnalysis(start_date='2020-04-24', end_date='2020-07-20', eval_date='2020-07-07',
                         number_days_var=20, show_plot=False)
-    print(volatility_var(date))
+    df = volatility_var(date)
+    plt.plot(df.risk_ratio)
+    plt.show()
 
     # date.print_date()
     # print(date.get_data()
