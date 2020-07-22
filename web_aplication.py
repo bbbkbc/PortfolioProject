@@ -18,7 +18,7 @@ from portfolio_risk import RiskAnalysis
 
 th = pd.read_csv('trade_history.csv', index_col=0)
 st = pd.read_csv('symbol_ticker.csv', index_col=0)
-pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end='2020-07-15')
+
 
 app = dash.Dash(external_stylesheets=[dbc.themes.CERULEAN])
 
@@ -319,7 +319,7 @@ def portfolio_table(date):
     data_prep = dp(th, st, date)
     data_pp = pp(data_prep, st, date)
     data = data_pp[['ticker', 'shares_actual', 'buy_share_sum', 'sell_share_sum', 'value_now',
-                    'mean_buy', 'mean_sell', 'mkt_close_price', 'pnl_live', 'pnl_closed']]
+                    'mean_buy', 'mean_sell', 'mkt_close_price', 'pnl_live', 'pnl_closed']].copy()
     data['Pnl_Open%'] = (((data.shares_actual * data.mkt_close_price) / (data.shares_actual * data.mean_buy)) - 1) * 100
     data['PnL_Closed%'] = (((data.sell_share_sum * data.mean_sell) / (data.sell_share_sum * data.mean_buy)) - 1) * 100
     data = round(data, ndigits=2)
@@ -346,17 +346,23 @@ page_3_layout = html.Div(children=[
     html.Hr(),
     html.Br(),
     html.H2('Total PnL performance'),
-    dcc.Graph(id='Total Pnl',
-              figure={'data': [{'x': pf_data.date,
-                                'y': pf_data.pnl_total,
-                                'type': 'line',
-                                'name': 'PNL'
-                                }],
-                      'layout': {'title': 'Total PNL in Nominal Values'}}),
+    html.Div(id='total-pnl'),
     html.Hr(),
     html.Br(),
     html.Div(id='benchmark-compare'),
 ])
+
+
+@app.callback(Output(component_id='total-pnl', component_property='children'),
+              [Input(component_id='delta-range', component_property='end_date')])
+def total_pnl_graph(end):
+    pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end=end)
+    return dcc.Graph(figure={'data': [{'x': pf_data.date,
+                                       'y': pf_data.pnl_total,
+                                       'type': 'line',
+                                       'name': 'PNL'
+                                       }],
+                             'layout': {'title': 'Total PNL in Nominal Values'}}),
 
 
 @app.callback(Output(component_id='benchmark-compare', component_property='children'),
@@ -474,7 +480,7 @@ page_6_layout = html.Div([
         id='my-date-picker-range',
         min_date_allowed=datetime.datetime(2020, 4, 24).date(),
         max_date_allowed=datetime.datetime.today().date(),
-        initial_visible_month=datetime.datetime.today().date(),
+        initial_visible_month=datetime.datetime.today().date() - datetime.timedelta(1),
         end_date=datetime.datetime.today().date(),
         display_format='Y-MM-DD'
     ),
