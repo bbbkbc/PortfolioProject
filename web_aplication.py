@@ -14,7 +14,7 @@ from dash.exceptions import PreventUpdate
 from portfolio import data_preparation as dp
 from portfolio import portfolio_analysis, pnl_analysis
 from portfolio import portfolio_preparation as pp
-from portfolio_risk import RiskAnalysis
+from portfolio_risk import RiskAnalysis, volatility_var
 
 th = pd.read_csv('trade_history.csv', index_col=0)
 st = pd.read_csv('symbol_ticker.csv', index_col=0)
@@ -481,7 +481,7 @@ page_6_layout = html.Div([
         min_date_allowed=datetime.datetime(2020, 4, 24).date(),
         max_date_allowed=datetime.datetime.today().date(),
         initial_visible_month=datetime.datetime.today().date() - datetime.timedelta(1),
-        end_date=datetime.datetime.today().date(),
+        end_date=datetime.datetime.today().date() - datetime.timedelta(1),
         display_format='Y-MM-DD'
     ),
     html.Div(id='output-container-date-picker-range')
@@ -508,9 +508,24 @@ def update_output(start_date, end_date):
         var_surface = RiskAnalysis(start_date=start_date, end_date=end_date, eval_date=end_date)
         fig = var_surface.var_3d_surface()[1]
         table = var_surface.var_3d_surface()[0]
+        table.insert(0, 'date', table.index.date)
+        implied_vol = volatility_var(var_surface)
         return [html.Div(string_prefix),
-                dbc.Row(dbc.Col(dcc.Graph(figure=fig), width={"size": 6, "offset": 3})),
-                dbc.Row(dbc.Table.from_dataframe(table))]
+                dbc.Row([dbc.Col(dcc.Graph(figure=fig), width=4),
+                        dbc.Col(dcc.Graph(figure={
+                            'data': [{'x': implied_vol.index,
+                                      'y': implied_vol.risk_ratio,
+                                      'type': 'line'}],
+                            'layout': {'title': 'Implied Volatility 1D',
+                                       'height': 800}}), width=8),
+                         ], no_gutters=True),
+                html.Br(),
+                dbc.Row(
+                    dash_table.DataTable(
+                        columns=[{'name': i, 'id': i} for i in table.columns],
+                        data=table.to_dict('records'),
+                        filter_action='native',
+                    ))]
     else:
         return string_prefix
 
