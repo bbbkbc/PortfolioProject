@@ -7,6 +7,7 @@ import datetime
 import plotly.graph_objects as go
 from portfolio import data_preparation as data_prep
 from portfolio import portfolio_preparation as pf_prep
+import plotly.express as px
 
 
 class RiskAnalysis:
@@ -101,9 +102,15 @@ class RiskAnalysis:
         port_stdev = var_components[3]
         returns[tik].hist(bins=20, density=True, histtype='stepfilled', alpha=0.4)
         x = np.linspace(port_mean - 3 * port_stdev, port_mean + 3 * port_stdev, 100)
-        plt.plot(x, norm.pdf(x, port_mean, port_stdev), 'r')
-        plt.title(f'{tik} returns vs normal distribution')
-        plt.show()
+        fig = px.histogram(returns[tik], histnorm='probability density',
+                           marginal="violin", title=f'{tik} returns vs normal distribution')
+        # fig.show()
+        # fig_2 = go.Figure(data=[go.Surface(z=returns.values)])
+        # fig_2.show()
+        # plt.plot(x, norm.pdf(x, port_mean, port_stdev), 'r')
+        # plt.title(f'{tik} returns vs normal distribution')
+        # plt.show()
+        return [returns, fig]
 
     def var_3d_surface(self):
         # iteration for only working date in range of start and end date
@@ -126,8 +133,8 @@ class RiskAnalysis:
             var_3d_frame.loc[x] = reload.n_day_var()
             capital.append(reload.df_pf.value_now.sum())
         fig = go.Figure(data=[go.Surface(z=var_3d_frame.values)])
-        fig.update_layout(title='VaR surface', autosize=False,
-                          width=800, height=800,)
+        fig.update_layout(title='VaR surface', autosize=False, height=800)
+                          # width=800, height=800,)
         return [var_3d_frame, fig, capital]
 
     def print_date(self):
@@ -150,11 +157,14 @@ def volatility_var(RsAnal):
 
 
 if __name__ == '__main__':
-    date = RiskAnalysis(start_date='2020-04-24', end_date='2020-07-20', eval_date='2020-07-07',
-                        number_days_var=20, show_plot=False)
-    df = volatility_var(date)
-    plt.plot(df.risk_ratio)
-    plt.show()
+    # date = RiskAnalysis(start_date='2020-04-30', end_date='2020-07-20', eval_date='2020-07-07',
+    #                     number_days_var=20, show_plot=False)
+    # df = volatility_var(date)
+    date_1 = RiskAnalysis(eval_date='2020-07-07', show_plot=False, histogram_ticker='ART')
+    date_1.histograms_var()
+
+    # plt.plot(df.risk_ratio)
+    # plt.show()
 
     # date.print_date()
     # print(date.get_data()

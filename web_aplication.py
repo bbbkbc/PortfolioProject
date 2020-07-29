@@ -484,14 +484,43 @@ page_6_layout = html.Div([
         end_date=datetime.datetime.today().date() - datetime.timedelta(1),
         display_format='Y-MM-DD'
     ),
-    html.Div(id='output-container-date-picker-range')
+    html.Div(id='output-container-date-picker-range'),
+    html.Hr(),
+    dbc.Row(
+        dbc.Col(
+            html.Div(id='ticker-dropdown'), width=2),
+    ),
+    dbc.Row(
+        dbc.Col(
+            html.Div(id='hist-graph'), width=6)
+    ),
 ])
 
 
-@app.callback(
-    dash.dependencies.Output('output-container-date-picker-range', 'children'),
-    [dash.dependencies.Input('my-date-picker-range', 'start_date'),
-     dash.dependencies.Input('my-date-picker-range', 'end_date')])
+@app.callback(Output('ticker-dropdown', 'children'),
+              [Input('my-date-picker-range', 'end_date')])
+def tik_output(end_date):
+    var_tickers = RiskAnalysis(eval_date=end_date)
+    tik_df = var_tickers.histograms_var()[0]
+    return dcc.Dropdown(
+        id='value-dropdown',
+        options=[
+            {'label': i, 'value': i} for i in tik_df.columns],
+        value='MBK')
+
+
+@app.callback(Output('hist-graph', 'children'),
+              [Input('value-dropdown', 'value'),
+               Input('my-date-picker-range', 'end_date')],)
+def tik_output(value, end_date):
+    var_hist = RiskAnalysis(eval_date=end_date, histogram_ticker=value)
+    fig = var_hist.histograms_var()[1]
+    return dcc.Graph(figure=fig)
+
+
+@app.callback(Output('output-container-date-picker-range', 'children'),
+              [Input('my-date-picker-range', 'start_date'),
+               Input('my-date-picker-range', 'end_date')])
 def update_output(start_date, end_date):
     string_prefix = 'You have selected: '
     if start_date is not None:
@@ -525,7 +554,7 @@ def update_output(start_date, end_date):
                         columns=[{'name': i, 'id': i} for i in table.columns],
                         data=table.to_dict('records'),
                         filter_action='native',
-                    ))]
+                    ), justify='center')]
     else:
         return string_prefix
 
@@ -568,4 +597,4 @@ def render_page_content(pathname):
 
 
 if __name__ == "__main__":
-    app.run_server(port=8888)
+    app.run_server(port=8889)
