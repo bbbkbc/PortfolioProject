@@ -150,7 +150,10 @@ def portfolio_delta(start_date, end_date):
     table_header = [html.Thead(html.Tr([html.Th("Indicator"),
                                         html.Th(f"Value at {start_date}"),
                                         html.Th(f"Value at {end_date}"),
-                                        html.Th(f"Delta")]))]
+                                        html.Th(f"Delta")]
+                                       )
+                               )
+                    ]
     row1 = html.Tr([html.Td("PNL LIVE"),
                     html.Td(f"{ps_start[3]:.2f}"),
                     html.Td(f"{ps_end[3]:.2f}"),
@@ -492,8 +495,7 @@ page_6_layout = html.Div([
     ),
     dbc.Row(
         dbc.Col(
-            html.Div(id='hist-graph'), width=6)
-    ),
+            html.Div(id='hist-graph'), width=7),),
 ])
 
 
@@ -515,6 +517,7 @@ def tik_output(end_date):
 def tik_output(value, end_date):
     var_hist = RiskAnalysis(eval_date=end_date, histogram_ticker=value)
     fig = var_hist.histograms_var()[1]
+    fig.update_layout(height=650)
     return dcc.Graph(figure=fig)
 
 
@@ -563,11 +566,11 @@ def update_output(start_date, end_date):
 # corresponding nav link to true, allowing users to tell see page they are on
 @app.callback(
     [Output(f"page-{i}-link", "active") for i in range(1, 7)],
-    [Input("url", "pathname")], )
+    [Input("url", "pathname")],)
 def toggle_active_links(pathname):
-    if pathname == "/":
-        # Treat page 1 as the homepage / index
-        return True, False
+    # if pathname == "/":
+    #     # Treat page 1 as the homepage / index
+    #     return [pathname == '/page-1']
     return [pathname == f"/page-{i}" for i in range(1, 7)]
 
 
@@ -597,4 +600,5 @@ def render_page_content(pathname):
 
 
 if __name__ == "__main__":
-    app.run_server(port=8889)
+    app.run_server(debug=False)
+
