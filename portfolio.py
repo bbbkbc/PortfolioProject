@@ -229,8 +229,10 @@ def pnl_analysis(th, symbol_tik, start="2020-04-24",
         benchmark_data = pd.read_csv(f'./mkt_data/{benchmark_symbol}.csv')
         benchmark_data = benchmark_data[['Date', 'Close']]
         # benchmark_data['Date'] = pd.to_datetime(benchmark_data['Date'])
-        benchmark_data['Date'] = pd.to_datetime(benchmark_data['Date']).date()
-        last_date = pd.to_datetime(benchmark_data.iloc[-1, 0]).date()
+        benchmark_data['Date'] = pd.to_datetime(benchmark_data['Date'])
+        benchmark_data['Date'] = benchmark_data.Date.dt.date
+        last_date = pd.to_datetime(benchmark_data.iloc[-1, 0])
+
         if ed > last_date:
             hd.data_download(symbol_tik, end=str(ed))
         benchmark_data = benchmark_data.loc[benchmark_data.Date >= (st - datetime.timedelta(1))]
