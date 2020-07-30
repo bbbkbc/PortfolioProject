@@ -1,10 +1,7 @@
-import math
 import pandas as pd
 import datetime
-from datetime import datetime as dt
 import holidays
 import numpy as np
-import altair as alt
 import matplotlib.pyplot as plt
 from palettable.colorbrewer.qualitative import Pastel1_7, Dark2_8
 import historical_data as hd
@@ -15,11 +12,11 @@ import historical_data as hd
 # print(symbol_ticker.head())
 
 
-def data_preparation(df_trades, df_st, portfolio_date="1990-01-01"):
+def data_preparation(df_trades, df_st, portfolio_date='1990-01-01'):
     # change format of date_time then split date_time column to date and time
     # and drop date_time column
     df_trades['date_time'] = pd.to_datetime(df_trades['date_time'])
-    df_trades["date"] = df_trades['date_time'].dt.date
+    df_trades['date'] = df_trades['date_time'].dt.date
     df_trades['time'] = df_trades['date_time'].dt.time
     df_trades = df_trades.drop(columns=['date_time'])
     # set position of columns
@@ -172,7 +169,8 @@ def visualization(df_pf, p_composition='donut', p=None):
     return data
 
 
-def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-07-02", show_chart=False, benchmark=False):
+def pnl_analysis(th, symbol_tik, start="2020-04-24",
+                 end="2020-07-02", show_chart=False, benchmark=False):
     pl_holidays = holidays.PL()
     st = pd.to_datetime(start).date()
     ed = pd.to_datetime(end).date()
@@ -180,7 +178,8 @@ def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-07-
     try:
         file_name = 'pf_pnl.csv'
         pkl_check = pd.read_csv(file_name)
-        pkl_check['date'] = pd.to_datetime(pkl_check['date']).dt.date
+        pkl_check['date'] = pd.to_datetime(pkl_check['date'])
+        pkl_check['date'] = pkl_check.date.dt.date
         pkl_last_date = pkl_check.date.max()
         if pkl_last_date >= ed:
             start_date_mask = pkl_check.date >= st
@@ -204,7 +203,9 @@ def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-07-
         val_open_lst = []
         val_now_lst = []
         for x in lst_bd:
-            pf_data = portfolio_preparation(data_preparation(trade_history, symbol_ticker, x), symbol_ticker, x)
+            pf_data = portfolio_preparation(data_preparation(th,
+                                                             symbol_tik, str(x)),
+                                            symbol_tik, str(x))
             pnl_l = pf_data.pnl_live.sum()
             pnl_c = pf_data.pnl_closed.sum()
             val_open = pf_data.value_at_open.sum()
@@ -217,19 +218,21 @@ def pnl_analysis(trade_history, symbol_ticker, start="2020-04-24", end="2020-07-
         df_pnl = pd.DataFrame(list(zip(date_lst, pnl_lst, val_open_lst, val_now_lst)),
                               columns=['date', 'pnl_total', 'val_open_lst', 'val_now_lst'])
         df_pnl.to_csv('pf_pnl.csv', index=False)
-    # condition below will modify df_pnl and return dataframe which compare daily retrun on portfolio and wig20
+    # condition below will modify df_pnl and return dataframe which compare daily return on portfolio and wig20
     if benchmark:
-        df_pnl['%_change_cumulative'] = (((df_pnl.val_open_lst + df_pnl.pnl_total) / df_pnl.val_open_lst) - 1) * 100
+        df_pnl = df_pnl.copy()
+        df_pnl['%_change_cumulative'] = (((df_pnl.val_open_lst + df_pnl.pnl_total)
+                                          / df_pnl.val_open_lst) - 1) * 100
         df_pnl['%_1_day_shift'] = abs(df_pnl['%_change_cumulative'].shift(1).fillna(0))
         df_pnl['%_daily_change'] = df_pnl['%_change_cumulative'] - df_pnl['%_1_day_shift']
         benchmark_symbol = 'WIG20'
         benchmark_data = pd.read_csv(f'./mkt_data/{benchmark_symbol}.csv')
         benchmark_data = benchmark_data[['Date', 'Close']]
         # benchmark_data['Date'] = pd.to_datetime(benchmark_data['Date'])
-        benchmark_data['Date'] = pd.to_datetime(benchmark_data['Date']).dt.date
+        benchmark_data['Date'] = pd.to_datetime(benchmark_data['Date']).date()
         last_date = pd.to_datetime(benchmark_data.iloc[-1, 0]).date()
         if ed > last_date:
-            hd.data_download(symbol_ticker, end=str(ed))
+            hd.data_download(symbol_tik, end=str(ed))
         benchmark_data = benchmark_data.loc[benchmark_data.Date >= (st - datetime.timedelta(1))]
         benchmark_data['1d_shift'] = benchmark_data['Close'].shift(1).fillna(0)
         benchmark_data['%1d_change'] = ((benchmark_data['Close'] / benchmark_data['1d_shift']) - 1) * 100
@@ -250,9 +253,9 @@ if __name__ == '__main__':
     df = data_preparation(trade_history, symbol_ticker)
     eval_day = "2020-04-25"
     portfolio = portfolio_preparation(df, symbol_ticker, eval_day)
-    data_pnl = pnl_analysis(trade_history, symbol_ticker, end='2020-07-03', show_chart=False, benchmark=True)
-    print(data_pnl[0])
-    print(data_pnl[1])
-    vis_d = visualization(portfolio, p_composition=None, p=False)
+    # data_pnl = pnl_analysis(trade_history, symbol_ticker, end='2020-07-03', show_chart=False, benchmark=True)
+    # print(data_pnl[0])
+    # print(data_pnl[1])
+    # vis_d = visualization(portfolio, p_composition=None, p=False)
 
     # pnl_analysis(trade_history, symbol_ticker, show_chart=True)
