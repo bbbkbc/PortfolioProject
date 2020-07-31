@@ -15,10 +15,10 @@ import historical_data as hd
 def data_preparation(df_trades, df_st, portfolio_date='1990-01-01'):
     # change format of date_time then split date_time column to date and time
     # and drop date_time column
-    df_trades['date_time'] = pd.to_datetime(df_trades['date_time'])
-    df_trades['date'] = df_trades['date_time'].dt.date
-    df_trades['time'] = df_trades['date_time'].dt.time
-    df_trades = df_trades.drop(columns=['date_time'])
+    # df_trades['date_time'] = pd.to_datetime(df_trades['date_time'])
+    df_trades['date'] = pd.to_datetime(df_trades['date_time']).dt.date
+    df_trades['time'] = pd.to_datetime(df_trades['date_time']).dt.time
+    df_trades = df_trades.drop('date_time', 1)
     # set position of columns
     df_trades = df_trades[['date', 'time', 'symbol',
                            'ticker', 'site', 'num_of_share',
