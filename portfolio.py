@@ -32,7 +32,7 @@ def data_preparation(df_trades, df_st, portfolio_date='1990-01-01'):
     # swap ticker values which are the same as in symbol column into correct
     # for this purpose i use file which store this values
     for i in df_trades.index:
-        st_mask = df_trades.symbol.iloc[i] == df_st.symbol
+        st_mask = df_trades.symbol.loc[i] == df_st.symbol
         df_trades.loc[i, 'ticker'] = df_st[st_mask].iat[0, 1]
     # this functionality allow to filter portfolio by date
     if portfolio_date != "1990-01-01":
@@ -203,9 +203,7 @@ def pnl_analysis(th, symbol_tik, start="2020-04-24",
         val_open_lst = []
         val_now_lst = []
         for x in lst_bd:
-            pf_data = portfolio_preparation(data_preparation(th,
-                                                             symbol_tik, str(x)),
-                                            symbol_tik, str(x))
+            pf_data = portfolio_preparation(data_preparation(th, symbol_tik, str(x)), symbol_tik, str(x))
             pnl_l = pf_data.pnl_live.sum()
             pnl_c = pf_data.pnl_closed.sum()
             val_open = pf_data.value_at_open.sum()
@@ -248,13 +246,12 @@ def pnl_analysis(th, symbol_tik, start="2020-04-24",
 
 
 if __name__ == '__main__':
-    # load needed data
+    # # load needed data
     trade_history = pd.read_csv('trade_history.csv', index_col=0)
     symbol_ticker = pd.read_csv('symbol_ticker.csv', index_col=0)
     hist_portfolio = "2020-04-25"
     df = data_preparation(trade_history, symbol_ticker)
-    eval_day = "2020-04-25"
-    portfolio = portfolio_preparation(df, symbol_ticker, eval_day)
+    # portfolio = portfolio_preparation(df, symbol_ticker, eval_day)
     # data_pnl = pnl_analysis(trade_history, symbol_ticker, end='2020-07-03', show_chart=False, benchmark=True)
     # print(data_pnl[0])
     # print(data_pnl[1])
