@@ -162,7 +162,7 @@ if __name__ == '__main__':
     # df = volatility_var(date)
     date_1 = RiskAnalysis(eval_date='2020-07-07', show_plot=False, histogram_ticker='ART')
     date_1.histograms_var()
-
+    print(date_1.var_3d_surface()[0])
     # plt.plot(df.risk_ratio)
     # plt.show()
 

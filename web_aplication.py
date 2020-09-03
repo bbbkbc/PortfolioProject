@@ -20,58 +20,62 @@ th = pd.read_csv('trade_history.csv', index_col=0)
 st = pd.read_csv('symbol_ticker.csv', index_col=0)
 
 
-app = dash.Dash(external_stylesheets=[dbc.themes.CERULEAN])
+app = dash.Dash(external_stylesheets=[dbc.themes.COSMO])
 
 # the style arguments for the sidebar. We use position:fixed and a fixed width
+# SIDEBAR_STYLE = {
+#     "position": "fixed",
+#     "top": 0,
+#     "left": 0,
+#     "bottom": 0,
+#     "width": "14rem",
+#     "padding": "1rem 1rem",
+#     "background-color": "#f8f9fa",
+# }
 SIDEBAR_STYLE = {
-    "position": "fixed",
-    "top": 0,
-    "left": 0,
-    "bottom": 0,
-    "width": "14rem",
-    "padding": "1rem 1rem",
-    "background-color": "#f8f9fa",
+    "position": "fluid",
 }
+
 
 # the styles for the main content position it to the right of the sidebar and
 # add some padding.
 CONTENT_STYLE = {
-    "margin-left": "15rem",
-    "margin-right": "0rem",
-    "padding": "4rem 2rem",
+    "position": "fixed",
+    "margin-left": "4rem",
+    "margin-right": "4rem",
+    "padding": "2rem 2rem",
 }
 
 
-sidebar = html.Div(
-    [
-        html.H2("Portfolio Management"),
-        html.Hr(),
-        html.P("This app is to help you make better investment decisions"),
-        dbc.Nav(
-            [
-                dbc.NavLink("Summary", href="/page-1", id="page-1-link"),
-                dbc.NavLink("Portfolio Composition", href="/page-2", id="page-2-link"),
-                dbc.NavLink("PNL", href="/page-3", id="page-3-link"),
-                dbc.NavLink("Stock Charts", href="/page-4", id="page-4-link"),
-                dbc.NavLink("Transactions", href="/page-5", id="page-5-link"),
-                dbc.NavLink("Risk Analysis", href="/page-6", id="page-6-link"),
-            ],
-            vertical=True,
-            pills=True,
-        ),
+navbar = dbc.NavbarSimple(
+    children=[
+        dbc.NavItem(dbc.NavLink("Summary", href="/page-1", id="page-1-link")),
+        dbc.NavItem(dbc.NavLink("Portfolio Composition", href="/page-2", id="page-2-link")),
+        dbc.NavItem(dbc.NavLink("PNL", href="/page-3", id="page-3-link")),
+        dbc.NavItem(dbc.NavLink("Stock Charts", href="/page-4", id="page-4-link")),
+        dbc.NavItem(dbc.NavLink("Transactions", href="/page-5", id="page-5-link")),
+        dbc.NavItem(dbc.NavLink("Risk Analysis", href="/page-6", id="page-6-link")),
     ],
+    brand="STOCKAPP",
+    brand_href="/page-1",
+    color="primary",
+    dark=True,
+    className="mb-4 containter-flex",
     style=SIDEBAR_STYLE,
+
 )
 
-content = html.Div(id="page-content", style=CONTENT_STYLE)
-app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
+content = html.Div(id="page-content", className="container-flex ml-5 mr-5")
+meta = html.Meta(name="viewport",
+                 content="width=device-width, initial-scale=1, shrink-to-fit=no")
+app.layout = html.Div([meta, dcc.Location(id="url"), navbar, content])
 
 # page 1 content - in this section app will show summary about portfolio
 page_1_layout = html.Div(
     children=[
         dbc.Row([
             dbc.Col(
-                html.H4('Set date:'), width='auto'),
+                html.H4('Set date:'), width='auto', className="primary"),
             dbc.Col([
                 dcc.DatePickerSingle(
                     id='calendar',
@@ -81,8 +85,9 @@ page_1_layout = html.Div(
                     initial_visible_month=datetime.datetime.today().date(),
                     date=datetime.datetime(2020, 6, 30).date(),
                     display_format='Y-MM-DD'),
-            ], width=5),
-            dbc.Col(html.H4('Delta range:'), width='auto'),
+            ], width=5, className="primary"),
+            dbc.Col(
+                html.H4('Delta range:'), width='auto', className="primary"),
             dbc.Col([
                 dcc.DatePickerRange(
                     id='delta-range',
@@ -94,8 +99,9 @@ page_1_layout = html.Div(
                     start_date=datetime.datetime(2020, 4, 24).date(),
                     end_date=datetime.datetime(2020, 7, 2).date(),
                     display_format='Y-MM-DD'
+
                 ),
-            ]),
+            ], className="primary"),
         ]),
         html.Br(),
         html.Hr(),
@@ -105,19 +111,21 @@ page_1_layout = html.Div(
                     dbc.CardHeader("Portfolio Summary:", className="card-title"),
                     dbc.CardBody(id='sum-data'),
                 ],
-                    color='secondary', inverse=False,
+                    color='primary', inverse=False,
                 ),
-            ]),
+            ], className='primary col-xl-6'),
             dbc.Col([
                 dbc.Table(id='delta-data',
                           bordered=True,
                           hover=True),
-            ]),
+            ], className='primary col-xl-6'),
         ]),
         dbc.Row([
             dbc.Col(id='val-chart')
         ]),
-    ])
+    ],
+    className="container-xl",
+)
 
 
 @app.callback(Output(component_id='sum-data', component_property='children'),
@@ -250,7 +258,7 @@ page_2_layout = html.Div(
                 html.Div(id='portfolio-table')
             ])
         ]),
-    ])
+    ], className="container-xl")
 
 
 @app.callback(Output(component_id='portfolio-pie', component_property='children'),
@@ -353,13 +361,13 @@ page_3_layout = html.Div(children=[
     html.Hr(),
     html.Br(),
     html.Div(id='benchmark-compare'),
-])
+], className="container-xl")
 
 
 @app.callback(Output(component_id='total-pnl', component_property='children'),
               [Input(component_id='delta-range', component_property='end_date')])
 def total_pnl_graph(end):
-    pf_data = pnl_analysis(trade_history=th, symbol_ticker=st, end=end)
+    pf_data = pnl_analysis(trade_hist=th, symbol_tik=st, end=end)
     return dcc.Graph(figure={'data': [{'x': pf_data.date,
                                        'y': pf_data.pnl_total,
                                        'type': 'line',
@@ -401,7 +409,7 @@ page_4_layout = html.Div(children=[
     html.Div(children='Set starting date:'),
     dcc.Input(id='start_date', value='2020-03-03', type='text'),
     html.Div(id='output_graph'),
-])
+], className="container-xl")
 
 
 @app.callback(
@@ -449,7 +457,7 @@ page_5_layout = html.Div([
         dbc.Col([
             html.Div(id='output-state')]),
     ]),
-])
+], className="container-xl")
 
 
 @app.callback(Output('output-state', 'children'),
@@ -496,7 +504,7 @@ page_6_layout = html.Div([
     dbc.Row(
         dbc.Col(
             html.Div(id='hist-graph'), width=7),),
-])
+], className="container-xl")
 
 
 @app.callback(Output('ticker-dropdown', 'children'),
@@ -540,7 +548,7 @@ def update_output(start_date, end_date):
         var_surface = RiskAnalysis(start_date=start_date, end_date=end_date, eval_date=end_date)
         fig = var_surface.var_3d_surface()[1]
         table = var_surface.var_3d_surface()[0]
-        table.insert(0, 'date', table.index.date)
+        table.insert(0, 'date', table.index)
         implied_vol = volatility_var(var_surface)
         return [html.Div(string_prefix),
                 dbc.Row([dbc.Col(dcc.Graph(figure=fig), width=4),

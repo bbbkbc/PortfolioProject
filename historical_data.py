@@ -24,5 +24,5 @@ if __name__ == '__main__':
     # symbol_ticker is just a file with list of name and shortcut stocks which are in portfolio
     portfolio_symbols = pd.read_csv('symbol_ticker.csv')
     start_date = "2010-01-01"
-    end_date = "2020-07-06"
+    end_date = "2020-09-02"
     data_download(portfolio_symbols, start_date, end_date)

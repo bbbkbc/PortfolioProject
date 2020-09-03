@@ -169,7 +169,7 @@ def visualization(df_pf, p_composition='donut', p=None):
     return data
 
 
-def pnl_analysis(th, symbol_tik, start="2020-04-24",
+def pnl_analysis(trade_hist, symbol_tik, start="2020-04-24",
                  end="2020-07-02", show_chart=False, benchmark=False):
     pl_holidays = holidays.PL()
     st = pd.to_datetime(start).date()
@@ -203,7 +203,7 @@ def pnl_analysis(th, symbol_tik, start="2020-04-24",
         val_open_lst = []
         val_now_lst = []
         for x in lst_bd:
-            pf_data = portfolio_preparation(data_preparation(th, symbol_tik, str(x)), symbol_tik, str(x))
+            pf_data = portfolio_preparation(data_preparation(trade_hist, symbol_tik, str(x)), symbol_tik, str(x))
             pnl_l = pf_data.pnl_live.sum()
             pnl_c = pf_data.pnl_closed.sum()
             val_open = pf_data.value_at_open.sum()
