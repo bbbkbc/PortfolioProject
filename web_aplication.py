@@ -19,7 +19,6 @@ from portfolio_risk import RiskAnalysis, volatility_var
 th = pd.read_csv('trade_history.csv', index_col=0)
 st = pd.read_csv('symbol_ticker.csv', index_col=0)
 
-
 app = dash.Dash(external_stylesheets=[dbc.themes.COSMO])
 
 # the style arguments for the sidebar. We use position:fixed and a fixed width
@@ -36,7 +35,6 @@ SIDEBAR_STYLE = {
     "position": "fluid",
 }
 
-
 # the styles for the main content position it to the right of the sidebar and
 # add some padding.
 CONTENT_STYLE = {
@@ -45,7 +43,6 @@ CONTENT_STYLE = {
     "margin-right": "4rem",
     "padding": "2rem 2rem",
 }
-
 
 navbar = dbc.NavbarSimple(
     children=[
@@ -252,7 +249,7 @@ page_2_layout = html.Div(
         dbc.Row([
             html.Hr(),
             dbc.Col(html.H3('Portfolio components table')),
-                 ]),
+        ]),
         dbc.Row([
             dbc.Col([
                 html.Div(id='portfolio-table')
@@ -491,8 +488,8 @@ page_6_layout = html.Div([
         id='my-date-picker-range',
         min_date_allowed=datetime.datetime(2020, 4, 24).date(),
         max_date_allowed=datetime.datetime.today().date(),
-        initial_visible_month=datetime.datetime.today().date() - datetime.timedelta(1),
-        end_date=datetime.datetime.today().date() - datetime.timedelta(1),
+        initial_visible_month=datetime.datetime.today().date() - datetime.timedelta(2),
+        end_date=datetime.datetime.today().date() - datetime.timedelta(2),
         display_format='Y-MM-DD'
     ),
     html.Div(id='output-container-date-picker-range'),
@@ -503,8 +500,8 @@ page_6_layout = html.Div([
     ),
     dbc.Row(
         dbc.Col(
-            html.Div(id='hist-graph'), width=7),),
-], className="container-xl")
+            html.Div(id='hist-graph')), align='stretch'),
+], className="container-xl",)
 
 
 @app.callback(Output('ticker-dropdown', 'children'),
@@ -521,11 +518,10 @@ def tik_output(end_date):
 
 @app.callback(Output('hist-graph', 'children'),
               [Input('value-dropdown', 'value'),
-               Input('my-date-picker-range', 'end_date')],)
+               Input('my-date-picker-range', 'end_date')], )
 def tik_output(value, end_date):
     var_hist = RiskAnalysis(eval_date=end_date, histogram_ticker=value)
     fig = var_hist.histograms_var()[1]
-    fig.update_layout(height=650)
     return dcc.Graph(figure=fig)
 
 
@@ -551,14 +547,12 @@ def update_output(start_date, end_date):
         table.insert(0, 'date', table.index)
         implied_vol = volatility_var(var_surface)
         return [html.Div(string_prefix),
-                dbc.Row([dbc.Col(dcc.Graph(figure=fig), width=4),
-                        dbc.Col(dcc.Graph(figure={
-                            'data': [{'x': implied_vol.index,
-                                      'y': implied_vol.risk_ratio,
-                                      'type': 'line'}],
-                            'layout': {'title': 'Implied Volatility 1D',
-                                       'height': 800}}), width=8),
-                         ], no_gutters=True),
+                dbc.Row(dcc.Graph(figure=fig), align='center'),
+                dbc.Row(dcc.Graph(figure={
+                    'data': [{'x': implied_vol.index,
+                              'y': implied_vol.risk_ratio,
+                              'type': 'line'}],
+                    'layout': {'title': 'Implied Volatility 1D'}}), align='center'),
                 html.Br(),
                 dbc.Row(
                     dash_table.DataTable(
@@ -574,7 +568,7 @@ def update_output(start_date, end_date):
 # corresponding nav link to true, allowing users to tell see page they are on
 @app.callback(
     [Output(f"page-{i}-link", "active") for i in range(1, 7)],
-    [Input("url", "pathname")],)
+    [Input("url", "pathname")], )
 def toggle_active_links(pathname):
     # if pathname == "/":
     #     # Treat page 1 as the homepage / index
@@ -609,4 +603,3 @@ def render_page_content(pathname):
 
 if __name__ == "__main__":
     app.run_server(debug=False)
-
