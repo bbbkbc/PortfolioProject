@@ -124,17 +124,20 @@ class RiskAnalysis:
             if bd in holidays_PL or bd.weekday() > 4:
                 continue
             date_lst.append(bd)
-        var_3d_frame['date'] = pd.to_datetime(date_lst)
-        var_3d_frame.set_index('date', inplace=True)
+        # var_3d_frame['date'] = pd.to_datetime(date_lst)
+        # var_3d_frame.set_index('date', inplace=True)
+        # print(var_3d_frame)
         capital = []
+        df_dict = {}
         for x in date_lst:
             reload = RiskAnalysis(start_date=self.start_date, end_date=self.end_date,
                                   eval_date=str(x), number_days_var=self.number_days_var, show_plot=False)
-            var_3d_frame.loc[x] = reload.n_day_var()
+
+            df_dict[x] = reload.n_day_var()
             capital.append(reload.df_pf.value_now.sum())
+        var_3d_frame = pd.DataFrame.from_dict(df_dict, orient='index', columns=var_3d_frame.columns)
         fig = go.Figure(data=[go.Surface(z=var_3d_frame.values)])
         fig.update_layout(title='VaR surface', autosize=False, height=800)
-                          # width=800, height=800,)
         return [var_3d_frame, fig, capital]
 
     def print_date(self):
@@ -157,12 +160,11 @@ def volatility_var(RsAnal):
 
 
 if __name__ == '__main__':
-    # date = RiskAnalysis(start_date='2020-04-30', end_date='2020-07-20', eval_date='2020-07-07',
-    #                     number_days_var=20, show_plot=False)
+    date = RiskAnalysis(start_date='2020-07-01', end_date='2020-07-20',
+                        number_days_var=20, show_plot=False)
     # df = volatility_var(date)
-    date_1 = RiskAnalysis(eval_date='2020-07-07', show_plot=False, histogram_ticker='ART')
-    date_1.histograms_var()
-    print(date_1.var_3d_surface()[0])
+    df = volatility_var(date)
+    print(df)
     # plt.plot(df.risk_ratio)
     # plt.show()
 
